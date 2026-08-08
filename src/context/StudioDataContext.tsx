@@ -151,7 +151,7 @@ export const StudioDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     return false;
   };
 
-  // Load persisted customizations on startup
+  // Load persisted customizations on startup + background cloud polling
   useEffect(() => {
     // 1. Try local storage first for instant render
     try {
@@ -165,6 +165,18 @@ export const StudioDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
     // 2. Fetch fresh cloud data across devices
     fetchCloudData();
+
+    // 3. Auto-poll cloud data every 8 seconds so all open tabs/incognito windows auto-update live
+    const interval = setInterval(fetchCloudData, 8000);
+
+    // 4. Fetch when user switches back to window/tab
+    const handleFocus = () => fetchCloudData();
+    window.addEventListener('focus', handleFocus);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', handleFocus);
+    };
   }, []);
 
   // Save changes to localStorage AND Cloud Storage URL

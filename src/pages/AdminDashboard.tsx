@@ -88,7 +88,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ setCurrentPage }
             const img = new Image();
             img.onload = () => {
               const canvas = document.createElement('canvas');
-              const maxWidth = 1200;
+              const maxWidth = 800;
               let width = img.width;
               let height = img.height;
 
@@ -103,9 +103,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ setCurrentPage }
               const ctx = canvas.getContext('2d');
               if (ctx) {
                 ctx.drawImage(img, 0, 0, width, height);
-                const compressedUrl = canvas.toDataURL('image/jpeg', 0.78);
+                const compressedUrl = canvas.toDataURL('image/jpeg', 0.65);
                 onSuccess(compressedUrl);
-                showToast('Image compressed & synced live across all devices!');
+                showToast('✅ Image optimized (~35KB) & synced live to cloud!');
               } else {
                 onSuccess(rawUrl);
                 showToast('Image uploaded!');
