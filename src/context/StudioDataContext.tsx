@@ -98,7 +98,7 @@ interface StudioDataContextType {
 
 const STORAGE_KEY = 'bright_to_bride_custom_data_v2';
 const AUTH_KEY = 'bright_to_bride_admin_auth';
-const CLOUD_STORAGE_URL = 'https://jsonblob.com/api/jsonBlob/019fe073-3d56-7985-8b4a-d944b8bc61a9';
+const CLOUD_STORAGE_URL = 'https://jsonblob.com/api/jsonBlob/019fe095-3399-7566-b7b3-4a17a8c970ac';
 
 const StudioDataContext = createContext<StudioDataContextType | undefined>(undefined);
 
