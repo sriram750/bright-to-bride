@@ -158,19 +158,19 @@ export const LuxuryImageCard: React.FC<LuxuryImageCardProps> = ({
         {/* Glassmorphic Sliding Overlay Card */}
         <motion.div
           animate={{
-            opacity: isHovered ? 1 : 0,
-            y: isHovered ? 0 : 15,
+            opacity: isHovered ? 1 : 0.9,
+            y: isHovered ? 0 : 4,
           }}
           transition={{
             duration: 0.4,
             ease: [0.16, 1, 0.3, 1],
           }}
-          className="absolute bottom-0 inset-x-0 z-30 p-5 bg-gradient-to-t from-studio-charcoal/95 via-studio-charcoal/80 to-transparent backdrop-blur-sm border-t border-studio-gold/20 flex flex-col justify-end text-studio-cream"
+          className="absolute bottom-0 inset-x-0 z-30 p-4 md:p-5 bg-gradient-to-t from-studio-charcoal/95 via-studio-charcoal/80 to-transparent backdrop-blur-sm border-t border-studio-gold/20 flex flex-col justify-end text-studio-cream transition-all duration-300 md:opacity-0 md:group-hover:opacity-100"
         >
           {/* Gold Decorative Accent Line */}
           <motion.div
             animate={{
-              width: isHovered ? '40px' : '0px',
+              width: isHovered ? '40px' : '20px',
             }}
             transition={{ duration: 0.4, delay: 0.1 }}
             className="h-[1.5px] bg-studio-gold mb-2"
@@ -181,20 +181,20 @@ export const LuxuryImageCard: React.FC<LuxuryImageCardProps> = ({
             {credit}
           </span>
 
-          <h3 className="font-serif text-lg font-bold tracking-wide mt-1 text-studio-cream">
+          <h3 className="font-serif text-base md:text-lg font-bold tracking-wide mt-0.5 text-studio-cream">
             {title}
           </h3>
 
           {description && (
-            <p className="font-sans text-[11px] text-studio-cream/80 mt-1 leading-relaxed line-clamp-2">
+            <p className="font-sans text-[10px] md:text-[11px] text-studio-cream/80 mt-1 leading-relaxed line-clamp-2">
               {description}
             </p>
           )}
 
-          <div className="flex items-center justify-between mt-3 pt-2 border-t border-white/10 text-[9px] tracking-widest uppercase text-studio-goldLight font-medium">
+          <div className="flex items-center justify-between mt-2.5 pt-2 border-t border-white/10 text-[9px] tracking-widest uppercase text-studio-goldLight font-medium">
             <span>Fine-Art Tamil Heritage</span>
             <span className="text-studio-gold font-bold flex items-center group-hover:translate-x-1 transition-transform">
-              Explore Frame →
+              Tap Frame →
             </span>
           </div>
         </motion.div>
