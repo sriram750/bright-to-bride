@@ -79,6 +79,7 @@ interface StudioDataContextType {
   portfolio: PortfolioItem[];
   packages: PackageItem[];
   testimonials: TestimonialItem[];
+  isCloudSynced: boolean;
   
   login: (password: string) => boolean;
   logout: () => void;
@@ -92,10 +93,12 @@ interface StudioDataContextType {
   resetToDefaults: () => void;
   exportConfigJson: () => string;
   importConfigJson: (jsonString: string) => boolean;
+  syncWithCloud: () => Promise<boolean>;
 }
 
 const STORAGE_KEY = 'bright_to_bride_custom_data_v2';
 const AUTH_KEY = 'bright_to_bride_admin_auth';
+const CLOUD_STORAGE_URL = 'https://jsonblob.com/api/jsonBlob/019fe073-3d56-7985-8b4a-d944b8bc61a9';
 
 const StudioDataContext = createContext<StudioDataContextType | undefined>(undefined);
 
@@ -114,29 +117,58 @@ export const StudioDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const [portfolio, setPortfolio] = useState<PortfolioItem[]>(portfolioData);
   const [packages] = useState<PackageItem[]>(packagesData);
   const [testimonials] = useState<TestimonialItem[]>(testimonialsData);
+  const [isCloudSynced, setIsCloudSynced] = useState<boolean>(false);
+
+  // Helper to apply parsed data to state
+  const applyData = (parsed: any) => {
+    if (parsed.activePresetId) setActivePresetId(parsed.activePresetId);
+    if (parsed.bannerEnabled !== undefined) setBannerEnabled(parsed.bannerEnabled);
+    if (parsed.bannerText) setBannerText(parsed.bannerText);
+    if (parsed.heroImage) setHeroImage(parsed.heroImage);
+    if (parsed.aboutPhotographerImage) setAboutPhotographerImage(parsed.aboutPhotographerImage);
+    if (parsed.homeStoryImage) setHomeStoryImage(parsed.homeStoryImage);
+    if (parsed.services && Array.isArray(parsed.services)) setServices(parsed.services);
+    if (parsed.portfolio && Array.isArray(parsed.portfolio)) setPortfolio(parsed.portfolio);
+  };
+
+  // Fetch Cloud Storage data on startup so all devices get the same state
+  const fetchCloudData = async () => {
+    try {
+      const res = await fetch(CLOUD_STORAGE_URL, { cache: 'no-store' });
+      if (res.ok) {
+        const data = await res.json();
+        if (data && (data.services || data.activePresetId)) {
+          applyData(data);
+          setIsCloudSynced(true);
+          // Also store locally for offline backup
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+          return true;
+        }
+      }
+    } catch (err) {
+      console.warn('Could not fetch cloud data, falling back to local cache:', err);
+    }
+    return false;
+  };
 
   // Load persisted customizations on startup
   useEffect(() => {
+    // 1. Try local storage first for instant render
     try {
       const savedData = localStorage.getItem(STORAGE_KEY);
       if (savedData) {
-        const parsed = JSON.parse(savedData);
-        if (parsed.activePresetId) setActivePresetId(parsed.activePresetId);
-        if (parsed.bannerEnabled !== undefined) setBannerEnabled(parsed.bannerEnabled);
-        if (parsed.bannerText) setBannerText(parsed.bannerText);
-        if (parsed.heroImage) setHeroImage(parsed.heroImage);
-        if (parsed.aboutPhotographerImage) setAboutPhotographerImage(parsed.aboutPhotographerImage);
-        if (parsed.homeStoryImage) setHomeStoryImage(parsed.homeStoryImage);
-        if (parsed.services && Array.isArray(parsed.services)) setServices(parsed.services);
-        if (parsed.portfolio && Array.isArray(parsed.portfolio)) setPortfolio(parsed.portfolio);
+        applyData(JSON.parse(savedData));
       }
     } catch (err) {
       console.error('Failed to parse saved studio data from localStorage:', err);
     }
+
+    // 2. Fetch fresh cloud data across devices
+    fetchCloudData();
   }, []);
 
-  // Save changes to localStorage
-  const saveState = (updatedState: {
+  // Save changes to localStorage AND Cloud Storage URL
+  const saveState = async (updatedState: {
     activePresetId?: string;
     bannerEnabled?: boolean;
     bannerText?: string;
@@ -146,17 +178,38 @@ export const StudioDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     services?: ServiceItem[];
     portfolio?: PortfolioItem[];
   }) => {
+    const payload = {
+      activePresetId: updatedState.activePresetId ?? activePresetId,
+      bannerEnabled: updatedState.bannerEnabled ?? bannerEnabled,
+      bannerText: updatedState.bannerText ?? bannerText,
+      heroImage: updatedState.heroImage ?? heroImage,
+      aboutPhotographerImage: updatedState.aboutPhotographerImage ?? aboutPhotographerImage,
+      homeStoryImage: updatedState.homeStoryImage ?? homeStoryImage,
+      services: updatedState.services ?? services,
+      portfolio: updatedState.portfolio ?? portfolio,
+      lastUpdated: new Date().toISOString()
+    };
+
+    // Save locally
     try {
-      const currentData = localStorage.getItem(STORAGE_KEY);
-      const existing = currentData ? JSON.parse(currentData) : {};
-      const payload = {
-        ...existing,
-        ...updatedState,
-        lastUpdated: new Date().toISOString()
-      };
       localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
     } catch (err) {
       console.error('Failed to save studio data to localStorage:', err);
+    }
+
+    // Push to Cloud DB so ALL devices see the changes instantly
+    try {
+      const cloudRes = await fetch(CLOUD_STORAGE_URL, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      if (cloudRes.ok) {
+        setIsCloudSynced(true);
+      }
+    } catch (err) {
+      console.error('Failed to push studio data update to cloud storage:', err);
+      setIsCloudSynced(false);
     }
   };
 
@@ -305,6 +358,7 @@ export const StudioDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         portfolio,
         packages,
         testimonials,
+        isCloudSynced,
         login,
         logout,
         setActivePreset,
@@ -316,7 +370,8 @@ export const StudioDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         updateBanner,
         resetToDefaults,
         exportConfigJson,
-        importConfigJson
+        importConfigJson,
+        syncWithCloud: fetchCloudData
       }}
     >
       {children}

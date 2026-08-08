@@ -43,7 +43,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ setCurrentPage }
     updatePortfolioImage,
     resetToDefaults,
     exportConfigJson,
-    importConfigJson
+    importConfigJson,
+    isCloudSynced,
+    syncWithCloud
   } = useStudioData();
 
   const [passwordInput, setPasswordInput] = useState('');
@@ -180,10 +182,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ setCurrentPage }
         {/* Header Bar */}
         <div className="bg-white p-6 md:p-8 rounded-2xl border border-studio-gold/20 shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
           <div className="space-y-1">
-            <div className="flex items-center space-x-3">
+            <div className="flex flex-wrap items-center gap-3">
               <span className="bg-emerald-100 text-emerald-800 text-[10px] font-bold uppercase tracking-widest px-2.5 py-1 rounded-full border border-emerald-300 flex items-center">
                 <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping mr-1.5" />
                 Admin Session Active
+              </span>
+              <span className="bg-sky-100 text-sky-800 text-[10px] font-bold uppercase tracking-widest px-2.5 py-1 rounded-full border border-sky-300 flex items-center">
+                🌐 Global Cloud Sync Active
               </span>
               <span className="text-xs text-studio-warmGray">Studio Owner: Arisiva S</span>
             </div>
@@ -193,6 +198,17 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ setCurrentPage }
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
+            <button
+              onClick={async () => {
+                const ok = await syncWithCloud();
+                showToast(ok ? 'Synced fresh cloud data across all devices!' : 'Cloud sync checked.');
+              }}
+              className="px-4 py-2.5 bg-sky-50 text-sky-800 border border-sky-300 hover:bg-sky-100 rounded-lg text-xs uppercase tracking-widest font-medium transition-colors flex items-center"
+              title="Force sync latest photo changes across all devices"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 mr-1.5 ${isCloudSynced ? '' : 'animate-spin'}`} /> Sync Cloud
+            </button>
+
             <button
               onClick={() => setCurrentPage('home')}
               className="px-4 py-2.5 bg-studio-cream border border-studio-gold/30 hover:border-studio-gold rounded-lg text-xs uppercase tracking-widest font-medium transition-colors flex items-center"
