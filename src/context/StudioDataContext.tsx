@@ -190,6 +190,9 @@ export const StudioDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       lastUpdated: new Date().toISOString()
     };
 
+    // Update in-memory React state immediately
+    applyData(payload);
+
     // Save locally
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
@@ -206,6 +209,9 @@ export const StudioDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       });
       if (cloudRes.ok) {
         setIsCloudSynced(true);
+        console.log('✅ Cloud Storage successfully updated across all devices!');
+      } else {
+        console.warn('Cloud Storage returned status:', cloudRes.status);
       }
     } catch (err) {
       console.error('Failed to push studio data update to cloud storage:', err);

@@ -80,12 +80,42 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ setCurrentPage }
     input.onchange = (e) => {
       const file = (e.target as HTMLInputElement).files?.[0];
       if (file) {
+        showToast('Compressing and syncing image to cloud...');
         const reader = new FileReader();
         reader.onload = (readerEvent) => {
-          const result = readerEvent.target?.result as string;
-          if (result) {
-            onSuccess(result);
-            showToast('Image uploaded and updated successfully!');
+          const rawUrl = readerEvent.target?.result as string;
+          if (rawUrl) {
+            const img = new Image();
+            img.onload = () => {
+              const canvas = document.createElement('canvas');
+              const maxWidth = 1200;
+              let width = img.width;
+              let height = img.height;
+
+              if (width > maxWidth) {
+                height = Math.round((height * maxWidth) / width);
+                width = maxWidth;
+              }
+
+              canvas.width = width;
+              canvas.height = height;
+
+              const ctx = canvas.getContext('2d');
+              if (ctx) {
+                ctx.drawImage(img, 0, 0, width, height);
+                const compressedUrl = canvas.toDataURL('image/jpeg', 0.78);
+                onSuccess(compressedUrl);
+                showToast('Image compressed & synced live across all devices!');
+              } else {
+                onSuccess(rawUrl);
+                showToast('Image uploaded!');
+              }
+            };
+            img.onerror = () => {
+              onSuccess(rawUrl);
+              showToast('Image uploaded!');
+            };
+            img.src = rawUrl;
           }
         };
         reader.readAsDataURL(file);
