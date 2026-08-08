@@ -118,6 +118,7 @@ export const StudioDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const [packages] = useState<PackageItem[]>(packagesData);
   const [testimonials] = useState<TestimonialItem[]>(testimonialsData);
   const [isCloudSynced, setIsCloudSynced] = useState<boolean>(false);
+  const [lastLocalUpdate, setLastLocalUpdate] = useState<number>(0);
 
   // Helper to apply parsed data to state
   const applyData = (parsed: any) => {
@@ -135,16 +136,17 @@ export const StudioDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     }
   };
 
-  // Fetch Cloud Storage data on startup so all devices get the same state
+  // Fetch Cloud Storage data only when needed (on mount or window focus)
   const fetchCloudData = async () => {
     try {
       const res = await fetch(CLOUD_STORAGE_URL, { cache: 'no-store' });
       if (res.ok) {
         const data = await res.json();
-        if (data && (data.services || data.activePresetId)) {
+        const cloudTime = data.lastUpdated ? new Date(data.lastUpdated).getTime() : 0;
+        // Only apply if cloud data is newer than our last local write
+        if (data && (data.services || data.activePresetId) && cloudTime >= lastLocalUpdate) {
           applyData(data);
           setIsCloudSynced(true);
-          // Also store locally for offline backup
           localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
           return true;
         }
@@ -155,7 +157,7 @@ export const StudioDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     return false;
   };
 
-  // Load persisted customizations on startup + background cloud polling
+  // Load persisted customizations on startup + window focus sync (no aggressive 429 polling)
   useEffect(() => {
     // 1. Try local storage first for instant render
     try {
@@ -167,23 +169,19 @@ export const StudioDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       console.error('Failed to parse saved studio data from localStorage:', err);
     }
 
-    // 2. Fetch fresh cloud data across devices
+    // 2. Fetch fresh cloud data on mount
     fetchCloudData();
 
-    // 3. Auto-poll cloud data every 8 seconds so all open tabs/incognito windows auto-update live
-    const interval = setInterval(fetchCloudData, 8000);
-
-    // 4. Fetch when user switches back to window/tab
+    // 3. Fetch when user switches back to window/tab
     const handleFocus = () => fetchCloudData();
     window.addEventListener('focus', handleFocus);
 
     return () => {
-      clearInterval(interval);
       window.removeEventListener('focus', handleFocus);
     };
   }, []);
 
-  // Save changes to localStorage AND Cloud Storage URL
+  // Save changes to localStorage AND Cloud Storage URL with automatic retry
   const saveState = async (updatedState: {
     activePresetId?: string;
     bannerEnabled?: boolean;
@@ -194,6 +192,9 @@ export const StudioDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     services?: ServiceItem[];
     portfolio?: PortfolioItem[];
   }) => {
+    const now = Date.now();
+    setLastLocalUpdate(now);
+
     const activeServices = (updatedState.services ?? services);
     const activePortfolio = (updatedState.portfolio ?? portfolio);
 
@@ -206,7 +207,7 @@ export const StudioDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       homeStoryImage: updatedState.homeStoryImage ?? homeStoryImage,
       services: activeServices.length > 0 ? activeServices : servicesData,
       portfolio: activePortfolio.length > 0 ? activePortfolio : portfolioData,
-      lastUpdated: new Date().toISOString()
+      lastUpdated: new Date(now).toISOString()
     };
 
     // Update in-memory React state immediately
@@ -219,23 +220,31 @@ export const StudioDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       console.error('Failed to save studio data to localStorage:', err);
     }
 
-    // Push to Cloud DB so ALL devices see the changes instantly
-    try {
-      const cloudRes = await fetch(CLOUD_STORAGE_URL, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-      if (cloudRes.ok) {
-        setIsCloudSynced(true);
-        console.log('✅ Cloud Storage successfully updated across all devices!');
-      } else {
-        console.warn('Cloud Storage returned status:', cloudRes.status);
+    // Push to Cloud DB with single retry if rate limited
+    const sendPut = async (attempt = 1): Promise<boolean> => {
+      try {
+        const cloudRes = await fetch(CLOUD_STORAGE_URL, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        if (cloudRes.ok) {
+          setIsCloudSynced(true);
+          console.log('✅ Cloud Storage successfully updated across all devices!');
+          return true;
+        } else if (cloudRes.status === 429 && attempt <= 2) {
+          console.warn('Cloud Storage rate limited (429), retrying in 1.5s...');
+          await new Promise((r) => setTimeout(r, 1500));
+          return sendPut(attempt + 1);
+        }
+      } catch (err) {
+        console.error('Failed to push studio data update to cloud storage:', err);
       }
-    } catch (err) {
-      console.error('Failed to push studio data update to cloud storage:', err);
       setIsCloudSynced(false);
-    }
+      return false;
+    };
+
+    sendPut();
   };
 
   const login = (password: string): boolean => {
