@@ -1,7 +1,10 @@
 import React, { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronDown, ChevronUp, Search, MessageCircle } from 'lucide-react';
 import { useSEO } from '../hooks/useSEO';
 import { faqsData, getWhatsAppLink } from '../data/studioData';
+import { GoldLineDraw } from '../components/GoldLineDraw';
+import { ScrollReveal } from '../components/ScrollReveal';
 
 export const FAQ: React.FC = () => {
   useSEO({
@@ -9,7 +12,7 @@ export const FAQ: React.FC = () => {
     description: "Got questions about traditional Tamil ceremony photography? Find answers about booking timelines, locations, customized packages, and photo delivery."
   });
 
-  const [openId, setOpenId] = useState<string | null>("f1"); // Open the first FAQ by default
+  const [openId, setOpenId] = useState<string | null>("f1");
   const [searchQuery, setSearchQuery] = useState("");
 
   const toggleAccordion = (id: string) => {
@@ -26,13 +29,16 @@ export const FAQ: React.FC = () => {
     <div className="bg-studio-cream pt-28 text-studio-charcoal min-h-screen">
       {/* Header */}
       <section className="max-w-7xl mx-auto px-6 md:px-12 py-12 border-b border-studio-gold/15 text-center">
-        <span className="text-[10px] tracking-[0.25em] text-studio-gold uppercase font-bold">Information Desk</span>
-        <h1 className="font-serif text-4xl md:text-5xl font-bold mt-2 mb-6">
-          Frequently Asked Questions
-        </h1>
-        <p className="font-sans text-xs md:text-sm text-studio-warmGray max-w-2xl leading-relaxed mx-auto">
-          Clear answers regarding travel configurations, traditional timelines, physical photo books, custom pricing plans, and booking workflows.
-        </p>
+        <ScrollReveal>
+          <span className="text-[10px] tracking-[0.25em] text-studio-gold uppercase font-bold">Information Desk</span>
+          <h1 className="font-serif text-4xl md:text-5xl font-bold mt-2 mb-4">
+            Frequently Asked Questions
+          </h1>
+          <p className="font-sans text-xs md:text-sm text-studio-warmGray max-w-2xl leading-relaxed mx-auto">
+            Clear answers regarding travel configurations, traditional timelines, physical photo books, custom pricing plans, and booking workflows.
+          </p>
+          <GoldLineDraw width={140} />
+        </ScrollReveal>
       </section>
 
       {/* Search Input Bar */}
@@ -64,11 +70,11 @@ export const FAQ: React.FC = () => {
               return (
                 <div
                   key={faq.id}
-                  className="bg-studio-cream border border-studio-gold/15 rounded overflow-hidden shadow-sm transition-all duration-300"
+                  className="bg-studio-cream border border-studio-gold/15 rounded overflow-hidden shadow-xs"
                 >
                   <button
                     onClick={() => toggleAccordion(faq.id)}
-                    className="w-full flex items-center justify-between p-5 md:p-6 text-left focus:outline-none active:bg-studio-sand/10 transition-colors"
+                    className="w-full flex items-center justify-between p-5 md:p-6 text-left focus:outline-none hover:bg-studio-sand/10 transition-colors"
                   >
                     <span className="font-serif text-xs md:text-sm font-bold text-studio-charcoal pr-6">
                       {faq.question}
@@ -80,12 +86,23 @@ export const FAQ: React.FC = () => {
                     )}
                   </button>
 
-                  {/* Collapsible Answer */}
-                  {isOpen && (
-                    <div className="px-5 md:px-6 pb-6 pt-1 font-sans text-xs text-studio-warmGray leading-relaxed animate-slide-up border-t border-studio-gold/5 mt-[-1px]">
-                      {faq.answer}
-                    </div>
-                  )}
+                  {/* Collapsible Motion Answer */}
+                  <AnimatePresence initial={false}>
+                    {isOpen && (
+                      <motion.div
+                        key="content"
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: 'auto' }}
+                        exit={{ opacity: 0, height: 0 }}
+                        transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+                        className="overflow-hidden"
+                      >
+                        <div className="px-5 md:px-6 pb-6 pt-1 font-sans text-xs text-studio-warmGray leading-relaxed border-t border-studio-gold/10">
+                          {faq.answer}
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </div>
               );
             })}
@@ -93,23 +110,25 @@ export const FAQ: React.FC = () => {
         )}
 
         {/* Dynamic Help Callout */}
-        <div className="mt-16 bg-studio-sand/20 border border-studio-gold/10 p-8 text-center rounded">
+        <ScrollReveal className="mt-16 bg-studio-sand/20 border border-studio-gold/10 p-8 text-center rounded">
           <h4 className="font-serif text-lg font-bold text-studio-charcoal mb-2">
             Still Have Questions?
           </h4>
           <p className="font-sans text-xs text-studio-warmGray mb-6">
             If you need details about a custom ceremony or timing, message Arisiva S directly.
           </p>
-          <a
+          <motion.a
+            whileHover={{ scale: 1.04 }}
+            whileTap={{ scale: 0.98 }}
             href={getWhatsAppLink('general')}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center bg-emerald-600 hover:bg-emerald-500 text-white px-6 py-3 font-sans text-xs tracking-widest uppercase font-semibold transition-all duration-300 shadow-md rounded"
+            className="inline-flex items-center bg-emerald-600 hover:bg-emerald-500 text-white px-6 py-3 font-sans text-xs tracking-widest uppercase font-semibold transition-colors duration-300 shadow-md rounded"
           >
             <MessageCircle className="w-4 h-4 mr-2 fill-white/10" />
             Chat on WhatsApp
-          </a>
-        </div>
+          </motion.a>
+        </ScrollReveal>
       </section>
     </div>
   );

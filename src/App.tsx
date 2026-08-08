@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Navbar } from './components/Navbar';
 import { Home } from './pages/Home';
 import { About } from './pages/About';
@@ -13,6 +14,7 @@ import { MobileStickyBar } from './components/MobileStickyBar';
 import { WhatsAppButton } from './components/WhatsAppButton';
 import { ExitIntentPopup } from './components/ExitIntentPopup';
 import { EventBanner } from './components/EventBanner';
+import { LuxuryLoader } from './components/LuxuryLoader';
 import { StudioDataProvider } from './context/StudioDataContext';
 import { studioInfo } from './data/studioData';
 import { Heart, Phone, Mail, Lock } from 'lucide-react';
@@ -70,15 +72,28 @@ function AppContent() {
 
   return (
     <div className="min-h-screen bg-studio-cream text-studio-charcoal flex flex-col justify-between selection:bg-studio-goldLight selection:text-studio-charcoal">
+      {/* Initial Minimal Elegant Loader Splash */}
+      <LuxuryLoader />
+
       {/* Top Event / Seasonal Announcement Banner */}
       <EventBanner />
 
       {/* Sticky Top Header */}
       <Navbar currentPage={currentPage} setCurrentPage={setCurrentPage} />
 
-      {/* Main Page Area */}
+      {/* Main Page Area with Soft Cross-Fade Page Transitions */}
       <main className="flex-grow">
-        {renderPage()}
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={currentPage}
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+          >
+            {renderPage()}
+          </motion.div>
+        </AnimatePresence>
       </main>
 
       {/* Global Interactive Elements */}
@@ -210,4 +225,3 @@ function App() {
 }
 
 export default App;
-

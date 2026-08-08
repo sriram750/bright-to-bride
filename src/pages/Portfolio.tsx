@@ -1,8 +1,11 @@
 import React, { useState } from 'react';
-import { Maximize2 } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useSEO } from '../hooks/useSEO';
 import { Lightbox } from '../components/Lightbox';
 import { useStudioData } from '../context/StudioDataContext';
+import { GoldLineDraw } from '../components/GoldLineDraw';
+import { ScrollReveal } from '../components/ScrollReveal';
+import { LuxuryImageCard } from '../components/LuxuryImageCard';
 
 export const Portfolio: React.FC = () => {
   const { portfolio } = useStudioData();
@@ -40,35 +43,42 @@ export const Portfolio: React.FC = () => {
     <div className="bg-studio-cream pt-28 text-studio-charcoal min-h-screen">
       {/* Header */}
       <section className="max-w-7xl mx-auto px-6 md:px-12 py-12 border-b border-studio-gold/15 text-center lg:text-left">
-        <span className="text-[10px] tracking-[0.25em] text-studio-gold uppercase font-bold">Captured Stories</span>
-        <h1 className="font-serif text-4xl md:text-5xl lg:text-6xl font-bold mt-2 mb-6">
-          Our Editorial Portfolio
-        </h1>
-        <p className="font-sans text-xs md:text-base text-studio-warmGray max-w-2xl leading-relaxed mx-auto lg:mx-0">
-          A curated selection of real emotions, traditional rituals, and unforgettable family bonds captured in Trichy and surrounding regions.
-        </p>
+        <ScrollReveal>
+          <span className="text-[10px] tracking-[0.25em] text-studio-gold uppercase font-bold">Captured Stories</span>
+          <h1 className="font-serif text-4xl md:text-5xl lg:text-6xl font-bold mt-2 mb-4">
+            Our Editorial Portfolio
+          </h1>
+          <p className="font-sans text-xs md:text-base text-studio-warmGray max-w-2xl leading-relaxed mx-auto lg:mx-0">
+            A curated selection of real emotions, traditional rituals, and unforgettable family bonds captured in Trichy and surrounding regions.
+          </p>
+          <div className="lg:justify-start flex justify-center">
+            <GoldLineDraw width={140} />
+          </div>
+        </ScrollReveal>
       </section>
 
       {/* Filter Tabs */}
       <section className="max-w-7xl mx-auto px-6 md:px-12 py-8 overflow-x-auto whitespace-nowrap scrollbar-none">
-        <div className="flex space-x-4 md:justify-center border-b border-studio-gold/5 pb-4">
+        <div className="flex space-x-3 md:justify-center border-b border-studio-gold/5 pb-4">
           {filters.map((filter) => (
-            <button
+            <motion.button
               key={filter}
+              whileHover={{ scale: 1.03 }}
+              whileTap={{ scale: 0.97 }}
               onClick={() => setActiveFilter(filter)}
-              className={`font-sans text-[10px] md:text-xs tracking-widest uppercase py-2 px-4 transition-all duration-300 border focus:outline-none ${
+              className={`font-sans text-[10px] md:text-xs tracking-widest uppercase py-2 px-4 transition-all duration-300 border focus:outline-none relative rounded-xs ${
                 activeFilter === filter
-                  ? 'border-studio-gold bg-studio-gold text-studio-charcoal font-semibold'
+                  ? 'border-studio-gold bg-studio-gold text-studio-charcoal font-semibold shadow-sm'
                   : 'border-studio-gold/10 hover:border-studio-gold/40 text-studio-warmGray hover:text-studio-charcoal'
               }`}
             >
               {filter}
-            </button>
+            </motion.button>
           ))}
         </div>
       </section>
 
-      {/* Grid Layout (Editorial / Masonry Style) */}
+      {/* Grid Layout (Editorial Masonry / Animated Stagger) */}
       <section className="max-w-7xl mx-auto px-6 md:px-12 py-12">
         {filteredPhotos.length === 0 ? (
           <div className="text-center py-20 bg-studio-sand/10 border border-dashed border-studio-gold/20 rounded">
@@ -77,42 +87,33 @@ export const Portfolio: React.FC = () => {
             </p>
           </div>
         ) : (
-          <div className="columns-1 sm:columns-2 lg:columns-3 gap-6 space-y-6">
-            {filteredPhotos.map((photo, index) => (
-              <div
-                key={photo.id}
-                onClick={() => openLightbox(index)}
-                className="break-inside-avoid relative overflow-hidden group cursor-pointer border border-studio-gold/10 rounded bg-studio-sand/10 shadow-sm transition-luxury"
-              >
-                {/* Image */}
-                <img
-                  src={photo.image}
-                  alt={photo.description}
-                  className="w-full h-auto object-cover transition-transform duration-700 group-hover:scale-105"
-                  loading="lazy"
-                />
-
-                {/* Hover overlay details */}
-                <div className="absolute inset-0 bg-studio-charcoal/70 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-between p-6">
-                  <div className="flex items-center justify-between text-studio-cream">
-                    <span className="bg-studio-gold/20 backdrop-blur-sm text-studio-gold font-sans text-[9px] tracking-widest uppercase px-2.5 py-1 rounded">
-                      {photo.category}
-                    </span>
-                    <Maximize2 className="w-4 h-4 text-studio-cream/80 group-hover:text-studio-gold transition-colors" />
-                  </div>
-
-                  <div className="text-studio-cream">
-                    <h3 className="font-serif text-lg font-semibold tracking-wide">
-                      {photo.title}
-                    </h3>
-                    <p className="font-sans text-[10px] text-studio-cream/70 mt-1 leading-relaxed">
-                      {photo.description}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
+          <motion.div
+            layout
+            className="columns-1 sm:columns-2 lg:columns-3 gap-6 space-y-6"
+          >
+            <AnimatePresence mode="popLayout">
+              {filteredPhotos.map((photo, index) => (
+                <motion.div
+                  key={photo.id}
+                  layout
+                  initial={{ opacity: 0, y: 30, scale: 0.96 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.9, transition: { duration: 0.2 } }}
+                  transition={{ duration: 0.5, delay: index * 0.05, ease: [0.16, 1, 0.3, 1] }}
+                  className="break-inside-avoid"
+                >
+                  <LuxuryImageCard
+                    src={photo.image}
+                    alt={photo.description}
+                    title={photo.title}
+                    category={photo.category}
+                    description={photo.description}
+                    onClick={() => openLightbox(index)}
+                  />
+                </motion.div>
+              ))}
+            </AnimatePresence>
+          </motion.div>
         )}
       </section>
 

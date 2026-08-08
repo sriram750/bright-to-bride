@@ -37,6 +37,14 @@
   transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
+@utility scale-104 {
+  transform: scale(1.04);
+}
+
+@utility scale-108 {
+  transform: scale(1.08);
+}
+
 @utility editorial-line {
   position: relative;
   &::after {

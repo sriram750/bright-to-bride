@@ -1,7 +1,10 @@
 import React, { useState } from 'react';
+import { motion } from 'framer-motion';
 import { Phone, MessageCircle, Mail, MapPin, Clock, Send, CheckCircle2 } from 'lucide-react';
 import { useSEO } from '../hooks/useSEO';
 import { studioInfo, getWhatsAppLink } from '../data/studioData';
+import { GoldLineDraw } from '../components/GoldLineDraw';
+import { ScrollReveal } from '../components/ScrollReveal';
 
 const InstagramIcon = (props: React.SVGProps<SVGSVGElement>) => (
   <svg
@@ -45,21 +48,25 @@ export const Contact: React.FC = () => {
     <div className="bg-studio-cream pt-28 text-studio-charcoal min-h-screen">
       {/* Header */}
       <section className="max-w-7xl mx-auto px-6 md:px-12 py-12 border-b border-studio-gold/15 text-center lg:text-left">
-        <span className="text-[10px] tracking-[0.25em] text-studio-gold uppercase font-bold">Get In Touch</span>
-        <h1 className="font-serif text-4xl md:text-5xl lg:text-6xl font-bold mt-2 mb-6">
-          Connect With Us
-        </h1>
-        <p className="font-sans text-xs md:text-base text-studio-warmGray max-w-2xl leading-relaxed mx-auto lg:mx-0">
-          Planning an upcoming traditional ceremony or wedding anywhere in Tamil Nadu? Write to us, connect on Instagram, or call directly.
-        </p>
+        <ScrollReveal>
+          <span className="text-[10px] tracking-[0.25em] text-studio-gold uppercase font-bold">Get In Touch</span>
+          <h1 className="font-serif text-4xl md:text-5xl lg:text-6xl font-bold mt-2 mb-4">
+            Connect With Us
+          </h1>
+          <p className="font-sans text-xs md:text-base text-studio-warmGray max-w-2xl leading-relaxed mx-auto lg:mx-0">
+            Planning an upcoming traditional ceremony or wedding anywhere in Tamil Nadu? Write to us, connect on Instagram, or call directly.
+          </p>
+          <div className="lg:justify-start flex justify-center">
+            <GoldLineDraw width={140} />
+          </div>
+        </ScrollReveal>
       </section>
 
       {/* Main Grid */}
       <section className="max-w-7xl mx-auto px-6 md:px-12 py-16 grid lg:grid-cols-12 gap-12 lg:gap-20">
 
         {/* Contact Info (Left 5 Columns) */}
-        <div className="lg:col-span-5 space-y-8">
-
+        <ScrollReveal direction="right" className="lg:col-span-5 space-y-8">
           <div className="border border-studio-gold/15 p-6 rounded bg-studio-sand/15">
             <h3 className="font-serif text-lg font-bold text-studio-charcoal mb-4">Bright to Bride Studio</h3>
 
@@ -111,30 +118,34 @@ export const Contact: React.FC = () => {
             <h3 className="font-serif text-lg font-bold text-studio-charcoal mb-4">Direct Connections</h3>
 
             <div className="grid grid-cols-2 gap-4">
-              <a
+              <motion.a
+                whileHover={{ scale: 1.03 }}
+                whileTap={{ scale: 0.98 }}
                 href={studioInfo.instagram}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center justify-center border border-studio-gold/25 p-3 rounded text-xs font-sans font-semibold text-studio-charcoal hover:bg-studio-charcoal hover:text-studio-cream transition-all duration-300"
+                className="flex items-center justify-center border border-studio-gold/25 p-3 rounded text-xs font-sans font-semibold text-studio-charcoal hover:bg-studio-charcoal hover:text-studio-cream transition-colors duration-300"
               >
                 <InstagramIcon className="w-4 h-4 mr-2" />
                 Instagram
-              </a>
-              <a
+              </motion.a>
+              <motion.a
+                whileHover={{ scale: 1.03 }}
+                whileTap={{ scale: 0.98 }}
                 href={getWhatsAppLink('general')}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center justify-center border border-emerald-600/30 p-3 rounded text-xs font-sans font-semibold text-emerald-700 hover:bg-emerald-600 hover:text-white transition-all duration-300"
+                className="flex items-center justify-center border border-emerald-600/30 p-3 rounded text-xs font-sans font-semibold text-emerald-700 hover:bg-emerald-600 hover:text-white transition-colors duration-300"
               >
                 <MessageCircle className="w-4 h-4 mr-2 fill-current/10" />
                 WhatsApp
-              </a>
+              </motion.a>
             </div>
           </div>
-        </div>
+        </ScrollReveal>
 
         {/* Contact Form & Map (Right 7 Columns) */}
-        <div className="lg:col-span-7 space-y-12">
+        <ScrollReveal direction="left" className="lg:col-span-7 space-y-12">
 
           {/* Form */}
           {!isSent ? (
@@ -195,16 +206,22 @@ export const Contact: React.FC = () => {
                 />
               </div>
 
-              <button
+              <motion.button
+                whileHover={{ scale: 1.02, boxShadow: '0 8px 20px rgba(26, 25, 23, 0.15)' }}
+                whileTap={{ scale: 0.98 }}
                 type="submit"
-                className="w-full bg-studio-charcoal text-studio-cream hover:bg-studio-gold hover:text-studio-charcoal py-3.5 font-sans text-xs tracking-widest uppercase font-semibold transition-all duration-300 flex items-center justify-center"
+                className="w-full bg-studio-charcoal text-studio-cream hover:bg-studio-gold hover:text-studio-charcoal py-3.5 font-sans text-xs tracking-widest uppercase font-semibold transition-colors duration-300 flex items-center justify-center shadow-sm"
               >
                 <Send className="w-3.5 h-3.5 mr-2" />
                 Submit Message
-              </button>
+              </motion.button>
             </form>
           ) : (
-            <div className="bg-studio-cream border border-studio-gold/15 p-8 rounded text-center animate-[scaleIn_0.4s_ease-out_forwards]">
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              className="bg-studio-cream border border-studio-gold/15 p-8 rounded text-center"
+            >
               <CheckCircle2 className="w-12 h-12 text-emerald-600 mx-auto mb-4 stroke-[1.5]" />
               <h3 className="font-serif text-xl font-bold mb-2">Message Sent!</h3>
               <p className="font-sans text-xs text-studio-warmGray leading-relaxed max-w-sm mx-auto mb-6">
@@ -216,7 +233,7 @@ export const Contact: React.FC = () => {
               >
                 Send another message
               </button>
-            </div>
+            </motion.div>
           )}
 
           {/* Elegant Google Maps Embed Placeholder */}
@@ -237,7 +254,6 @@ export const Contact: React.FC = () => {
 
             {/* Map Frame Placeholder */}
             <div className="bg-studio-sand/10 h-72 flex flex-col items-center justify-center relative p-6 text-center">
-              {/* Decorative grid */}
               <div className="absolute inset-0 opacity-5 pointer-events-none bg-[radial-gradient(#c5a880_1px,transparent_1px)] [background-size:16px_16px]" />
 
               <MapPin className="w-8 h-8 text-studio-gold mb-3 stroke-[1.2]" />
@@ -248,7 +264,7 @@ export const Contact: React.FC = () => {
             </div>
           </div>
 
-        </div>
+        </ScrollReveal>
       </section>
     </div>
   );
