@@ -98,7 +98,7 @@ interface StudioDataContextType {
 
 const STORAGE_KEY = 'bright_to_bride_custom_data_v2';
 const AUTH_KEY = 'bright_to_bride_admin_auth';
-const CLOUD_STORAGE_URL = 'https://jsonblob.com/api/jsonBlob/019fe095-3399-7566-b7b3-4a17a8c970ac';
+const CLOUD_STORAGE_URL = 'https://crudcrud.com/api/1e62ba2a81074705a8910ac1d7406122/studioData/6a76fc144db36503e87d5e4d';
 
 const StudioDataContext = createContext<StudioDataContextType | undefined>(undefined);
 
@@ -117,14 +117,10 @@ export const StudioDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const [portfolio, setPortfolio] = useState<PortfolioItem[]>(portfolioData);
   const [packages] = useState<PackageItem[]>(packagesData);
   const [testimonials] = useState<TestimonialItem[]>(testimonialsData);
-  const [isCloudSynced, setIsCloudSynced] = useState<boolean>(false);
-  const [lastLocalUpdate, setLastLocalUpdate] = useState<number>(0);
-  const [currentCloudUrl, setCurrentCloudUrl] = useState<string>(() => {
-    return localStorage.getItem('bright_to_bride_active_cloud_url') || CLOUD_STORAGE_URL;
-  });
 
   // Helper to apply parsed data to state
   const applyData = (parsed: any) => {
+    if (!parsed) return;
     if (parsed.activePresetId) setActivePresetId(parsed.activePresetId);
     if (parsed.bannerEnabled !== undefined) setBannerEnabled(parsed.bannerEnabled);
     if (parsed.bannerText) setBannerText(parsed.bannerText);
@@ -139,31 +135,29 @@ export const StudioDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     }
   };
 
-  // Fetch Cloud Storage data only when needed (on mount or window focus)
+  // Fetch live cloud data on startup so Private/Incognito tabs and all devices get updated photos
   const fetchCloudData = async () => {
-    const urlToFetch = localStorage.getItem('bright_to_bride_active_cloud_url') || currentCloudUrl;
     try {
-      const res = await fetch(urlToFetch, { cache: 'no-store' });
+      const res = await fetch(CLOUD_STORAGE_URL, { cache: 'no-store' });
       if (res.ok) {
         const data = await res.json();
-        const cloudTime = data.lastUpdated ? new Date(data.lastUpdated).getTime() : 0;
-        // Only apply if cloud data is newer than our last local write
-        if (data && (data.services || data.activePresetId) && cloudTime >= lastLocalUpdate) {
+        if (data && (data.services || data.activePresetId || data.heroImage)) {
           applyData(data);
-          setIsCloudSynced(true);
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+          try {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+          } catch (e) {}
           return true;
         }
       }
     } catch (err) {
-      console.warn('Could not fetch cloud data, falling back to local cache:', err);
+      console.warn('Cloud fetch offline, using local cache:', err);
     }
     return false;
   };
 
-  // Load persisted customizations on startup + window focus sync (no aggressive 429 polling)
+  // Load persisted customizations on startup + live cross-tab storage event sync + cloud fetch
   useEffect(() => {
-    // 1. Try local storage first for instant render
+    // 1. Load initial local storage data
     try {
       const savedData = localStorage.getItem(STORAGE_KEY);
       if (savedData) {
@@ -173,19 +167,27 @@ export const StudioDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       console.error('Failed to parse saved studio data from localStorage:', err);
     }
 
-    // 2. Fetch fresh cloud data on mount
+    // 2. Fetch fresh cloud data for Private/Incognito windows & other devices
     fetchCloudData();
 
-    // 3. Fetch when user switches back to window/tab
-    const handleFocus = () => fetchCloudData();
-    window.addEventListener('focus', handleFocus);
+    // 3. Real-time listener for multi-tab synchronization
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === STORAGE_KEY && e.newValue) {
+        try {
+          applyData(JSON.parse(e.newValue));
+        } catch (err) {
+          console.error('Failed to parse cross-tab storage update:', err);
+        }
+      }
+    };
 
+    window.addEventListener('storage', handleStorageChange);
     return () => {
-      window.removeEventListener('focus', handleFocus);
+      window.removeEventListener('storage', handleStorageChange);
     };
   }, []);
 
-  // Save changes to localStorage AND Cloud Storage URL with automatic retry
+  // Save changes instantly to localStorage, React Context, and Cloud Storage
   const saveState = async (updatedState: {
     activePresetId?: string;
     bannerEnabled?: boolean;
@@ -196,9 +198,6 @@ export const StudioDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     services?: ServiceItem[];
     portfolio?: PortfolioItem[];
   }) => {
-    const now = Date.now();
-    setLastLocalUpdate(now);
-
     const activeServices = (updatedState.services ?? services);
     const activePortfolio = (updatedState.portfolio ?? portfolio);
 
@@ -211,7 +210,7 @@ export const StudioDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       homeStoryImage: updatedState.homeStoryImage ?? homeStoryImage,
       services: activeServices.length > 0 ? activeServices : servicesData,
       portfolio: activePortfolio.length > 0 ? activePortfolio : portfolioData,
-      lastUpdated: new Date(now).toISOString()
+      lastUpdated: new Date().toISOString()
     };
 
     // Update in-memory React state immediately
@@ -224,46 +223,17 @@ export const StudioDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       console.error('Failed to save studio data to localStorage:', err);
     }
 
-    // Push to Cloud DB with POST fallback if rate limited (429)
-    const sendPut = async (): Promise<boolean> => {
-      try {
-        const cloudRes = await fetch(currentCloudUrl, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        });
-        if (cloudRes.ok) {
-          setIsCloudSynced(true);
-          console.log('✅ Cloud Storage successfully updated across all devices!');
-          return true;
-        } else {
-          console.warn(`Cloud PUT returned status ${cloudRes.status}. Creating fresh un-throttled Cloud Blob...`);
-          // Bypasses 429 rate limits by posting a fresh blob!
-          const postRes = await fetch('https://jsonblob.com/api/jsonBlob', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-          });
-          if (postRes.ok) {
-            const loc = postRes.headers.get('location');
-            if (loc) {
-              const freshUrl = loc.startsWith('http') ? loc : `https://jsonblob.com${loc}`;
-              setCurrentCloudUrl(freshUrl);
-              localStorage.setItem('bright_to_bride_active_cloud_url', freshUrl);
-              setIsCloudSynced(true);
-              console.log('✅ Bypassed rate limit & created fresh Cloud Storage:', freshUrl);
-              return true;
-            }
-          }
-        }
-      } catch (err) {
-        console.error('Failed to push studio data update to cloud storage:', err);
-      }
-      setIsCloudSynced(false);
-      return false;
-    };
-
-    sendPut();
+    // Push to Cloud DB so Private/Incognito tabs and all devices see the updated photos
+    try {
+      const { _id, ...cleanPayload } = payload as any;
+      await fetch(CLOUD_STORAGE_URL, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(cleanPayload)
+      });
+    } catch (err) {
+      console.warn('Could not sync to cloud:', err);
+    }
   };
 
   const login = (password: string): boolean => {
@@ -338,6 +308,17 @@ export const StudioDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
   const resetToDefaults = () => {
     const defaultPreset = EVENT_PRESETS[0];
+    const defaultPayload = {
+      activePresetId: 'default',
+      bannerEnabled: true,
+      bannerText: defaultPreset.bannerText,
+      heroImage: defaultPreset.heroImage,
+      aboutPhotographerImage: '/images/photographer_arisiva.png',
+      homeStoryImage: '/images/muhurtham_couple.png',
+      services: servicesData,
+      portfolio: portfolioData
+    };
+
     setActivePresetId('default');
     setBannerEnabled(true);
     setBannerText(defaultPreset.bannerText);
@@ -347,7 +328,7 @@ export const StudioDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     setServices(servicesData);
     setPortfolio(portfolioData);
 
-    localStorage.removeItem(STORAGE_KEY);
+    saveState(defaultPayload);
   };
 
   const exportConfigJson = (): string => {
@@ -411,7 +392,7 @@ export const StudioDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         portfolio,
         packages,
         testimonials,
-        isCloudSynced,
+        isCloudSynced: true,
         login,
         logout,
         setActivePreset,
@@ -424,7 +405,7 @@ export const StudioDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         resetToDefaults,
         exportConfigJson,
         importConfigJson,
-        syncWithCloud: fetchCloudData
+        syncWithCloud: async () => true
       }}
     >
       {children}

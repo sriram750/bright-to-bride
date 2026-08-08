@@ -24,7 +24,7 @@ const InstagramIcon = (props: React.SVGProps<SVGSVGElement>) => (
 export const Contact: React.FC = () => {
   useSEO({
     title: "Contact Bright to Bride | Photography All Over Tamil Nadu",
-    description: "Get in touch with Arisiva S at Bright to Bride. Serving all over Tamil Nadu. Call or WhatsApp 9500264840 or email brighttobride16@gmail.com."
+    description: "Get in touch with Arisiva S at Bright to Bride. Serving all over Tamil Nadu. Call or WhatsApp 9500264840 or email brighttobride18@gmail.com."
   });
 
   const [formData, setFormData] = useState({ name: '', phone: '', email: '', message: '' });

@@ -67,7 +67,7 @@ export const studioInfo: StudioInfo = {
   location: "All Over Tamil Nadu, India",
   address: "Serving All Over Tamil Nadu, India (H.O: Trichy)",
   operationalHours: "Monday - Sunday: 9:00 AM - 9:00 PM",
-  email: "brighttobride16@gmail.com",
+  email: "brighttobride18@gmail.com",
   socialLinks: {
     instagram: "https://www.instagram.com/bright_to_bride_photography?igsh=NXAyajB4cmVzeGw5",
     whatsapp: "https://wa.me/919500264840",
