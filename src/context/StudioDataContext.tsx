@@ -127,8 +127,12 @@ export const StudioDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     if (parsed.heroImage) setHeroImage(parsed.heroImage);
     if (parsed.aboutPhotographerImage) setAboutPhotographerImage(parsed.aboutPhotographerImage);
     if (parsed.homeStoryImage) setHomeStoryImage(parsed.homeStoryImage);
-    if (parsed.services && Array.isArray(parsed.services)) setServices(parsed.services);
-    if (parsed.portfolio && Array.isArray(parsed.portfolio)) setPortfolio(parsed.portfolio);
+    if (parsed.services && Array.isArray(parsed.services) && parsed.services.length > 0) {
+      setServices(parsed.services);
+    }
+    if (parsed.portfolio && Array.isArray(parsed.portfolio) && parsed.portfolio.length > 0) {
+      setPortfolio(parsed.portfolio);
+    }
   };
 
   // Fetch Cloud Storage data on startup so all devices get the same state
@@ -190,6 +194,9 @@ export const StudioDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     services?: ServiceItem[];
     portfolio?: PortfolioItem[];
   }) => {
+    const activeServices = (updatedState.services ?? services);
+    const activePortfolio = (updatedState.portfolio ?? portfolio);
+
     const payload = {
       activePresetId: updatedState.activePresetId ?? activePresetId,
       bannerEnabled: updatedState.bannerEnabled ?? bannerEnabled,
@@ -197,8 +204,8 @@ export const StudioDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       heroImage: updatedState.heroImage ?? heroImage,
       aboutPhotographerImage: updatedState.aboutPhotographerImage ?? aboutPhotographerImage,
       homeStoryImage: updatedState.homeStoryImage ?? homeStoryImage,
-      services: updatedState.services ?? services,
-      portfolio: updatedState.portfolio ?? portfolio,
+      services: activeServices.length > 0 ? activeServices : servicesData,
+      portfolio: activePortfolio.length > 0 ? activePortfolio : portfolioData,
       lastUpdated: new Date().toISOString()
     };
 
