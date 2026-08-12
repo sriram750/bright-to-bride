@@ -6,7 +6,10 @@ import { studioInfo } from '../data/studioData';
 import { GoldLineDraw } from '../components/GoldLineDraw';
 import { ScrollReveal, StaggerGrid, StaggerItem } from '../components/ScrollReveal';
 
+import { useStudioData } from '../context/StudioDataContext';
+
 export const Booking: React.FC = () => {
+  const { addMessage } = useStudioData();
   useSEO({
     title: "Check Date Availability & Booking | Bright to Bride Studio",
     description: "Submit your event details to check date availability and request a customized photography quote for weddings or family rites of passage all over Tamil Nadu."
@@ -36,6 +39,13 @@ export const Booking: React.FC = () => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    addMessage({
+      name: formData.name,
+      phone: formData.phone || formData.whatsapp,
+      email: formData.email,
+      message: `[Booking Request] Event: ${formData.eventType} | Date: ${formData.eventDate} | Venue: ${formData.location} | Guests: ${formData.guests} | Package: ${formData.preferredPackage} | Notes: ${formData.requirements}`,
+      type: 'Booking Inquiry'
+    });
     setIsSubmitted(true);
   };
 

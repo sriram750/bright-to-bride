@@ -15,7 +15,7 @@ interface HomeProps {
 }
 
 export const Home: React.FC<HomeProps> = ({ setCurrentPage }) => {
-  const { heroImage, homeStoryImage } = useStudioData();
+  const { heroImage, homeStoryImage, instagramImages } = useStudioData();
   useSEO({
     title: "Bright to Bride | Wedding & Traditional Ceremony Photography in Trichy",
     description: "Bright to Bride by Arisiva S offers premium wedding, traditional ceremony, family, and milestone photography in Mannachanallur and Trichy. Capture your beautiful moments with emotional storytelling."
@@ -478,20 +478,15 @@ export const Home: React.FC<HomeProps> = ({ setCurrentPage }) => {
           <GoldLineDraw />
         </ScrollReveal>
 
-        {/* Static Visual Image Grid */}
+        {/* Dynamic Visual Image Grid */}
         <StaggerGrid className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-12">
-          {[
-            { img: "/images/hero_wedding.png", alt: "Traditional wedding couple", title: "Muhurtham Garlands", cat: "Weddings" },
-            { img: "/images/seemantham_ceremony.png", alt: "Baby shower bangles", title: "Seemantham Blessings", cat: "Childhood" },
-            { img: "/images/muhurtham_couple.png", alt: "Sacred Muhurtham ceremony", title: "Sacred Vows", cat: "Tradition" },
-            { img: "/images/portfolio_baby_cradle.png", alt: "Thottil Vizha cradle setup", title: "Thottil Vizha", cat: "Rites of Passage" }
-          ].map((item, index) => (
-            <StaggerItem key={index}>
+          {(instagramImages || []).map((item) => (
+            <StaggerItem key={item.id}>
               <LuxuryImageCard
-                src={item.img}
+                src={item.image}
                 alt={item.alt}
                 title={item.title}
-                category={item.cat}
+                category={item.category}
                 aspectRatio="aspect-square"
                 onClick={() => window.open(studioInfo.instagram, '_blank')}
               />

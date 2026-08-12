@@ -20,6 +20,31 @@ export interface PortfolioItem {
   description: string;
 }
 
+export interface InstagramItem {
+  id: string;
+  image: string;
+  alt: string;
+  title: string;
+  category: string;
+}
+
+export interface MessageItem {
+  id: string;
+  name: string;
+  phone: string;
+  email: string;
+  message: string;
+  date: string;
+  type?: string;
+}
+
+export const defaultInstagramItems: InstagramItem[] = [
+  { id: 'insta-1', image: "/images/hero_wedding.png", alt: "Traditional wedding couple", title: "Muhurtham Garlands", category: "Weddings" },
+  { id: 'insta-2', image: "/images/seemantham_ceremony.png", alt: "Baby shower bangles", title: "Seemantham Blessings", category: "Childhood" },
+  { id: 'insta-3', image: "/images/muhurtham_couple.png", alt: "Sacred Muhurtham ceremony", title: "Sacred Vows", category: "Tradition" },
+  { id: 'insta-4', image: "/images/portfolio_baby_cradle.png", alt: "Thottil Vizha cradle setup", title: "Thottil Vizha", category: "Rites of Passage" }
+];
+
 export interface EventPreset {
   id: string;
   name: string;
@@ -77,6 +102,8 @@ interface StudioDataContextType {
   homeStoryImage: string;
   services: ServiceItem[];
   portfolio: PortfolioItem[];
+  instagramImages: InstagramItem[];
+  messages: MessageItem[];
   packages: PackageItem[];
   testimonials: TestimonialItem[];
   isCloudSynced: boolean;
@@ -86,10 +113,13 @@ interface StudioDataContextType {
   setActivePreset: (presetId: string) => void;
   updateServiceImage: (serviceId: string, newImageUrl: string) => void;
   updatePortfolioImage: (portfolioId: string, newImageUrl: string) => void;
+  updateInstagramImage: (id: string, newImageUrl: string, newTitle?: string, newCategory?: string) => void;
   updateHeroImage: (newImageUrl: string) => void;
   updateAboutPhotographerImage: (newImageUrl: string) => void;
   updateHomeStoryImage: (newImageUrl: string) => void;
   updateBanner: (enabled: boolean, text: string) => void;
+  addMessage: (msg: { name: string; phone: string; email: string; message: string; type?: string }) => void;
+  deleteMessage: (id: string) => void;
   resetToDefaults: () => void;
   exportConfigJson: () => string;
   importConfigJson: (jsonString: string) => boolean;
@@ -98,7 +128,6 @@ interface StudioDataContextType {
 
 const STORAGE_KEY = 'bright_to_bride_custom_data_v2';
 const AUTH_KEY = 'bright_to_bride_admin_auth';
-const CLOUD_STORAGE_URL = 'https://crudcrud.com/api/1e62ba2a81074705a8910ac1d7406122/studioData/6a76fc144db36503e87d5e4d';
 
 const StudioDataContext = createContext<StudioDataContextType | undefined>(undefined);
 
@@ -115,6 +144,8 @@ export const StudioDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const [homeStoryImage, setHomeStoryImage] = useState<string>('/images/muhurtham_couple.png');
   const [services, setServices] = useState<ServiceItem[]>(servicesData);
   const [portfolio, setPortfolio] = useState<PortfolioItem[]>(portfolioData);
+  const [instagramImages, setInstagramImages] = useState<InstagramItem[]>(defaultInstagramItems);
+  const [messages, setMessages] = useState<MessageItem[]>([]);
   const [packages] = useState<PackageItem[]>(packagesData);
   const [testimonials] = useState<TestimonialItem[]>(testimonialsData);
 
@@ -133,31 +164,40 @@ export const StudioDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     if (parsed.portfolio && Array.isArray(parsed.portfolio) && parsed.portfolio.length > 0) {
       setPortfolio(parsed.portfolio);
     }
+    if (parsed.instagramImages && Array.isArray(parsed.instagramImages) && parsed.instagramImages.length > 0) {
+      setInstagramImages(parsed.instagramImages);
+    }
+    if (parsed.messages && Array.isArray(parsed.messages)) {
+      setMessages(parsed.messages);
+    }
   };
 
-  // Fetch live cloud data on startup so Private/Incognito tabs and all devices get updated photos
-  const fetchCloudData = async () => {
+  // Fetch live server data on startup so Incognito tabs and all browsers get updated photos
+  const fetchServerData = async () => {
     try {
-      const res = await fetch(CLOUD_STORAGE_URL, { cache: 'no-store' });
+      let res = await fetch('/api/studio-data', { cache: 'no-store' });
+      if (!res.ok) {
+        res = await fetch('/studio-data.json', { cache: 'no-store' });
+      }
       if (res.ok) {
         const data = await res.json();
-        if (data && (data.services || data.activePresetId || data.heroImage)) {
+        if (data && (data.services || data.activePresetId || data.heroImage || data.aboutPhotographerImage || data.homeStoryImage || data.instagramImages || data.messages)) {
           applyData(data);
           try {
             localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-          } catch (e) {}
+          } catch {}
           return true;
         }
       }
     } catch (err) {
-      console.warn('Cloud fetch offline, using local cache:', err);
+      console.warn('Server data fetch offline, using local cache:', err);
     }
     return false;
   };
 
-  // Load persisted customizations on startup + live cross-tab storage event sync + cloud fetch
+  // Load persisted customizations on startup + live cross-tab storage event sync + server fetch
   useEffect(() => {
-    // 1. Load initial local storage data
+    // 1. Load initial local storage data if present
     try {
       const savedData = localStorage.getItem(STORAGE_KEY);
       if (savedData) {
@@ -167,10 +207,10 @@ export const StudioDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       console.error('Failed to parse saved studio data from localStorage:', err);
     }
 
-    // 2. Fetch fresh cloud data for Private/Incognito windows & other devices
-    fetchCloudData();
+    // 2. Fetch fresh server data for Private/Incognito windows & all tabs
+    fetchServerData();
 
-    // 3. Real-time listener for multi-tab synchronization
+    // 3. Real-time listener for multi-tab localStorage synchronization
     const handleStorageChange = (e: StorageEvent) => {
       if (e.key === STORAGE_KEY && e.newValue) {
         try {
@@ -180,14 +220,26 @@ export const StudioDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         }
       }
     };
-
     window.addEventListener('storage', handleStorageChange);
+
+    // 4. Real-time BroadcastChannel for cross-context / incognito sync
+    let bc: BroadcastChannel | null = null;
+    if (typeof BroadcastChannel !== 'undefined') {
+      bc = new BroadcastChannel('bright_to_bride_sync');
+      bc.onmessage = (event) => {
+        if (event.data) {
+          applyData(event.data);
+        }
+      };
+    }
+
     return () => {
       window.removeEventListener('storage', handleStorageChange);
+      if (bc) bc.close();
     };
   }, []);
 
-  // Save changes instantly to localStorage, React Context, and Cloud Storage
+  // Save changes instantly to localStorage, React Context, Server DB, and BroadcastChannel
   const saveState = async (updatedState: {
     activePresetId?: string;
     bannerEnabled?: boolean;
@@ -197,9 +249,13 @@ export const StudioDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     homeStoryImage?: string;
     services?: ServiceItem[];
     portfolio?: PortfolioItem[];
+    instagramImages?: InstagramItem[];
+    messages?: MessageItem[];
   }) => {
     const activeServices = (updatedState.services ?? services);
     const activePortfolio = (updatedState.portfolio ?? portfolio);
+    const activeInstagram = (updatedState.instagramImages ?? instagramImages);
+    const activeMessages = (updatedState.messages ?? messages);
 
     const payload = {
       activePresetId: updatedState.activePresetId ?? activePresetId,
@@ -210,29 +266,39 @@ export const StudioDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       homeStoryImage: updatedState.homeStoryImage ?? homeStoryImage,
       services: activeServices.length > 0 ? activeServices : servicesData,
       portfolio: activePortfolio.length > 0 ? activePortfolio : portfolioData,
+      instagramImages: activeInstagram.length > 0 ? activeInstagram : defaultInstagramItems,
+      messages: activeMessages,
       lastUpdated: new Date().toISOString()
     };
 
     // Update in-memory React state immediately
     applyData(payload);
 
-    // Save locally
+    // 1. Save locally to localStorage
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
     } catch (err) {
       console.error('Failed to save studio data to localStorage:', err);
     }
 
-    // Push to Cloud DB so Private/Incognito tabs and all devices see the updated photos
+    // 2. Broadcast to all open tabs / windows in real time
     try {
-      const { _id, ...cleanPayload } = payload as any;
-      await fetch(CLOUD_STORAGE_URL, {
-        method: 'PUT',
+      if (typeof BroadcastChannel !== 'undefined') {
+        const bc = new BroadcastChannel('bright_to_bride_sync');
+        bc.postMessage(payload);
+        bc.close();
+      }
+    } catch {}
+
+    // 3. Push to Server DB (/api/studio-data) so Private/Incognito tabs and all devices see updated photos
+    try {
+      await fetch('/api/studio-data', {
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(cleanPayload)
+        body: JSON.stringify(payload)
       });
     } catch (err) {
-      console.warn('Could not sync to cloud:', err);
+      console.warn('Could not sync to server API:', err);
     }
   };
 
@@ -265,7 +331,9 @@ export const StudioDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       aboutPhotographerImage,
       homeStoryImage,
       services,
-      portfolio
+      portfolio,
+      instagramImages,
+      messages
     });
   };
 
@@ -283,6 +351,42 @@ export const StudioDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     );
     setPortfolio(updatedPortfolio);
     saveState({ portfolio: updatedPortfolio });
+  };
+
+  const updateInstagramImage = (id: string, newImageUrl: string, newTitle?: string, newCategory?: string) => {
+    const updatedInstagram = instagramImages.map((item) =>
+      item.id === id
+        ? {
+            ...item,
+            image: newImageUrl || item.image,
+            title: newTitle !== undefined ? newTitle : item.title,
+            category: newCategory !== undefined ? newCategory : item.category
+          }
+        : item
+    );
+    setInstagramImages(updatedInstagram);
+    saveState({ instagramImages: updatedInstagram });
+  };
+
+  const addMessage = (msg: { name: string; phone: string; email: string; message: string; type?: string }) => {
+    const newMsg: MessageItem = {
+      id: 'msg-' + Date.now(),
+      name: msg.name,
+      phone: msg.phone,
+      email: msg.email,
+      message: msg.message,
+      date: new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }),
+      type: msg.type || 'Direct Message'
+    };
+    const updated = [newMsg, ...messages];
+    setMessages(updated);
+    saveState({ messages: updated });
+  };
+
+  const deleteMessage = (id: string) => {
+    const updated = messages.filter((m) => m.id !== id);
+    setMessages(updated);
+    saveState({ messages: updated });
   };
 
   const updateHeroImage = (newImageUrl: string) => {
@@ -316,7 +420,9 @@ export const StudioDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       aboutPhotographerImage: '/images/photographer_arisiva.png',
       homeStoryImage: '/images/muhurtham_couple.png',
       services: servicesData,
-      portfolio: portfolioData
+      portfolio: portfolioData,
+      instagramImages: defaultInstagramItems,
+      messages: []
     };
 
     setActivePresetId('default');
@@ -327,6 +433,8 @@ export const StudioDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     setHomeStoryImage('/images/muhurtham_couple.png');
     setServices(servicesData);
     setPortfolio(portfolioData);
+    setInstagramImages(defaultInstagramItems);
+    setMessages([]);
 
     saveState(defaultPayload);
   };
@@ -341,6 +449,8 @@ export const StudioDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       homeStoryImage,
       services,
       portfolio,
+      instagramImages,
+      messages,
       exportedAt: new Date().toISOString(),
       studio: studioInfo.name
     };
@@ -359,6 +469,8 @@ export const StudioDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         if (parsed.homeStoryImage) setHomeStoryImage(parsed.homeStoryImage);
         setServices(parsed.services);
         setPortfolio(parsed.portfolio);
+        if (parsed.instagramImages) setInstagramImages(parsed.instagramImages);
+        if (parsed.messages) setMessages(parsed.messages);
 
         saveState({
           activePresetId: parsed.activePresetId || activePresetId,
@@ -368,7 +480,9 @@ export const StudioDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
           aboutPhotographerImage: parsed.aboutPhotographerImage || aboutPhotographerImage,
           homeStoryImage: parsed.homeStoryImage || homeStoryImage,
           services: parsed.services,
-          portfolio: parsed.portfolio
+          portfolio: parsed.portfolio,
+          instagramImages: parsed.instagramImages || instagramImages,
+          messages: parsed.messages || messages
         });
         return true;
       }
@@ -390,6 +504,8 @@ export const StudioDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         homeStoryImage,
         services,
         portfolio,
+        instagramImages,
+        messages,
         packages,
         testimonials,
         isCloudSynced: true,
@@ -398,10 +514,13 @@ export const StudioDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         setActivePreset,
         updateServiceImage,
         updatePortfolioImage,
+        updateInstagramImage,
         updateHeroImage,
         updateAboutPhotographerImage,
         updateHomeStoryImage,
         updateBanner,
+        addMessage,
+        deleteMessage,
         resetToDefaults,
         exportConfigJson,
         importConfigJson,

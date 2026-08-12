@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { Phone, MessageCircle, Mail, MapPin, Clock, Send, CheckCircle2 } from 'lucide-react';
 import { useSEO } from '../hooks/useSEO';
 import { studioInfo, getWhatsAppLink } from '../data/studioData';
+import { useStudioData } from '../context/StudioDataContext';
 import { GoldLineDraw } from '../components/GoldLineDraw';
 import { ScrollReveal } from '../components/ScrollReveal';
 
@@ -25,12 +26,14 @@ const InstagramIcon = (props: React.SVGProps<SVGSVGElement>) => (
 );
 
 export const Contact: React.FC = () => {
+  const { addMessage } = useStudioData();
   useSEO({
     title: "Contact Bright to Bride | Photography All Over Tamil Nadu",
     description: "Get in touch with Arisiva S at Bright to Bride. Serving all over Tamil Nadu. Call or WhatsApp 9500264840 or email brighttobride18@gmail.com."
   });
 
   const [formData, setFormData] = useState({ name: '', phone: '', email: '', message: '' });
+  const [submittedData, setSubmittedData] = useState<{ name: string; phone: string; email: string; message: string } | null>(null);
   const [isSent, setIsSent] = useState(false);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -40,8 +43,29 @@ export const Contact: React.FC = () => {
 
   const handleFormSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    addMessage({
+      name: formData.name,
+      phone: formData.phone,
+      email: formData.email,
+      message: formData.message,
+      type: 'Direct Message'
+    });
+    setSubmittedData({ ...formData });
     setIsSent(true);
     setFormData({ name: '', phone: '', email: '', message: '' });
+  };
+
+  const getDirectWhatsAppUrl = () => {
+    if (!submittedData) return getWhatsAppLink('general');
+    const text = `Hello Bright to Bride,\n\nName: ${submittedData.name}\nPhone: ${submittedData.phone}\nEmail: ${submittedData.email}\nMessage: ${submittedData.message}`;
+    return `https://wa.me/91${studioInfo.whatsapp}?text=${encodeURIComponent(text)}`;
+  };
+
+  const getDirectMailtoUrl = () => {
+    if (!submittedData) return `mailto:${studioInfo.email}`;
+    const subject = `Direct Message from ${submittedData.name}`;
+    const body = `Name: ${submittedData.name}\nPhone: ${submittedData.phone}\nEmail: ${submittedData.email}\n\nMessage:\n${submittedData.message}`;
+    return `mailto:${studioInfo.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
   };
 
   return (
@@ -220,19 +244,50 @@ export const Contact: React.FC = () => {
             <motion.div
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
-              className="bg-studio-cream border border-studio-gold/15 p-8 rounded text-center"
+              className="bg-studio-cream border border-studio-gold/15 p-8 md:p-10 rounded text-center space-y-6"
             >
-              <CheckCircle2 className="w-12 h-12 text-emerald-600 mx-auto mb-4 stroke-[1.5]" />
-              <h3 className="font-serif text-xl font-bold mb-2">Message Sent!</h3>
-              <p className="font-sans text-xs text-studio-warmGray leading-relaxed max-w-sm mx-auto mb-6">
-                Thank you for contacting Bright to Bride. Arisiva S will read your details and get back to you shortly.
-              </p>
-              <button
-                onClick={() => setIsSent(false)}
-                className="text-[10px] font-sans tracking-widest uppercase text-studio-gold underline font-bold"
-              >
-                Send another message
-              </button>
+              <CheckCircle2 className="w-14 h-14 text-emerald-600 mx-auto stroke-[1.5]" />
+              <div>
+                <h3 className="font-serif text-2xl font-bold text-studio-charcoal">Message Saved & Registered!</h3>
+                <p className="font-sans text-xs text-studio-warmGray leading-relaxed max-w-md mx-auto mt-2">
+                  Vanakkam! Your message has been saved in the studio registry. Arisiva S will review it shortly.
+                </p>
+              </div>
+
+              {/* Direct Instant Actions */}
+              <div className="bg-studio-sand/30 p-5 rounded-lg border border-studio-gold/20 text-left space-y-3 max-w-md mx-auto">
+                <span className="font-serif text-xs font-bold text-studio-charcoal block border-b border-studio-gold/15 pb-2">
+                  ⚡ Instant Notification Triggers:
+                </span>
+                <p className="font-sans text-[11px] text-studio-warmGray leading-relaxed">
+                  To notify Arisiva S immediately on his phone or via email, click below:
+                </p>
+                <div className="flex flex-col sm:flex-row gap-3 pt-1">
+                  <a
+                    href={getDirectWhatsAppUrl()}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white py-3 px-4 rounded text-xs font-semibold tracking-wider uppercase flex items-center justify-center transition-colors"
+                  >
+                    <MessageCircle className="w-4 h-4 mr-2" /> WhatsApp
+                  </a>
+                  <a
+                    href={getDirectMailtoUrl()}
+                    className="flex-1 bg-studio-charcoal hover:bg-studio-gold hover:text-studio-charcoal text-studio-cream py-3 px-4 rounded text-xs font-semibold tracking-wider uppercase flex items-center justify-center transition-colors"
+                  >
+                    <Mail className="w-4 h-4 mr-2" /> Send Email
+                  </a>
+                </div>
+              </div>
+
+              <div>
+                <button
+                  onClick={() => setIsSent(false)}
+                  className="text-xs font-sans tracking-widest uppercase text-studio-gold hover:text-studio-charcoal underline font-bold"
+                >
+                  ← Write another message
+                </button>
+              </div>
             </motion.div>
           )}
 

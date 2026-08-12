@@ -14,7 +14,10 @@ import {
   LogOut,
   ArrowLeft,
   Eye,
-  AlertCircle
+  AlertCircle,
+  Mail,
+  Phone,
+  MessageCircle
 } from 'lucide-react';
 
 interface AdminDashboardProps {
@@ -41,6 +44,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ setCurrentPage }
     updateServiceImage,
     portfolio,
     updatePortfolioImage,
+    instagramImages,
+    updateInstagramImage,
+    messages,
+    deleteMessage,
     resetToDefaults,
     exportConfigJson,
     importConfigJson,
@@ -50,7 +57,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ setCurrentPage }
 
   const [passwordInput, setPasswordInput] = useState('');
   const [authError, setAuthError] = useState(false);
-  const [activeTab, setActiveTab] = useState<'themes' | 'services' | 'portfolio' | 'banner' | 'export'>('themes');
+  const [activeTab, setActiveTab] = useState<'themes' | 'services' | 'portfolio' | 'banner' | 'messages' | 'export'>('themes');
   const [saveNotification, setSaveNotification] = useState<string | null>(null);
   const [jsonInput, setJsonInput] = useState('');
   const [jsonError, setJsonError] = useState(false);
@@ -274,6 +281,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ setCurrentPage }
             { id: 'services', label: '🖼️ Service Photos', icon: ImageIcon },
             { id: 'portfolio', label: '📸 Portfolio Gallery', icon: Sliders },
             { id: 'banner', label: '📢 Hero & Announcement', icon: Sliders },
+            { id: 'messages', label: `📬 Direct Messages (${messages ? messages.length : 0})`, icon: Mail },
             { id: 'export', label: '💾 Backup & JSON', icon: FileJson }
           ].map((tab) => (
             <button
@@ -595,6 +603,57 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ setCurrentPage }
                   </div>
                 </div>
               </div>
+              {/* Homepage Instagram Showcase Photos Editor */}
+              <div className="space-y-4 pt-6 border-t border-gray-100">
+                <div className="space-y-1">
+                  <label className="block text-xs font-bold uppercase tracking-wider text-studio-charcoal">
+                    Homepage "Follow Us on Instagram" 4-Photo Showcase Grid
+                  </label>
+                  <p className="text-xs text-studio-warmGray">
+                    Upload custom images and customize titles for each of the 4 featured Instagram cards on the homepage.
+                  </p>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {(instagramImages || []).map((item) => (
+                    <div key={item.id} className="bg-studio-cream/40 p-4 rounded-xl border border-studio-gold/20 space-y-3">
+                      <div className="flex items-center space-x-3">
+                        <img
+                          src={item.image}
+                          alt={item.title}
+                          className="w-16 h-16 object-cover rounded-lg border border-studio-gold/30 shadow-xs flex-shrink-0"
+                        />
+                        <div className="flex-grow space-y-1">
+                          <span className="text-[10px] font-bold text-studio-gold uppercase tracking-wider bg-studio-gold/10 px-2 py-0.5 rounded border border-studio-gold/20">
+                            {item.category}
+                          </span>
+                          <input
+                            type="text"
+                            value={item.title}
+                            onChange={(e) => updateInstagramImage(item.id, item.image, e.target.value, item.category)}
+                            className="w-full px-2.5 py-1 text-xs font-bold text-studio-charcoal bg-white border border-studio-gold/30 rounded focus:outline-none focus:border-studio-gold"
+                            placeholder="Card Title"
+                          />
+                        </div>
+                      </div>
+                      <div className="flex space-x-2">
+                        <input
+                          type="text"
+                          value={item.image}
+                          onChange={(e) => updateInstagramImage(item.id, e.target.value, item.title, item.category)}
+                          className="flex-grow px-2.5 py-1.5 text-[11px] bg-white border border-studio-gold/30 rounded focus:outline-none focus:border-studio-gold font-mono"
+                          placeholder="Image URL"
+                        />
+                        <button
+                          onClick={() => handleFileUpload((newUrl) => updateInstagramImage(item.id, newUrl, item.title, item.category))}
+                          className="px-3 py-1.5 bg-studio-charcoal text-studio-cream hover:bg-studio-gold hover:text-studio-charcoal rounded text-[10px] uppercase tracking-wider font-medium transition-colors flex items-center whitespace-nowrap"
+                        >
+                          <Upload className="w-3 h-3 mr-1" /> Replace
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
 
               {/* Announcement Bar Toggle & Text */}
               <div className="space-y-4 pt-6 border-t border-gray-100">
@@ -627,6 +686,102 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ setCurrentPage }
                 </div>
               </div>
             </div>
+          </div>
+        )}
+
+        {/* Tab: Direct Messages & Inquiries Inbox */}
+        {activeTab === 'messages' && (
+          <div className="space-y-6 animate-fade-in">
+            <div className="bg-white p-6 rounded-2xl border border-studio-gold/20 shadow-sm space-y-2">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="font-serif text-xl font-bold text-studio-charcoal">
+                    📬 Incoming Direct Messages & Booking Inquiries
+                  </h3>
+                  <p className="text-xs text-studio-warmGray">
+                    All submitted contact form messages and date availability requests are logged here in real time.
+                  </p>
+                </div>
+                <span className="px-3 py-1 bg-studio-gold/10 text-studio-gold font-bold rounded-full text-xs border border-studio-gold/20">
+                  {messages ? messages.length : 0} Messages Total
+                </span>
+              </div>
+            </div>
+
+            {(!messages || messages.length === 0) ? (
+              <div className="bg-white p-12 rounded-2xl border border-studio-gold/20 text-center space-y-3">
+                <Mail className="w-12 h-12 text-studio-gold/40 mx-auto stroke-[1.2]" />
+                <h4 className="font-serif text-lg font-bold text-studio-charcoal">No Direct Messages Yet</h4>
+                <p className="text-xs text-studio-warmGray max-w-sm mx-auto">
+                  When visitors submit messages on the Contact or Booking page, they will instantly show up here.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {messages.map((msg) => (
+                  <div key={msg.id} className="bg-white p-6 rounded-2xl border border-studio-gold/20 shadow-xs space-y-4">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-gray-100 pb-3 gap-2">
+                      <div className="flex items-center space-x-3">
+                        <span className="w-9 h-9 bg-studio-charcoal text-studio-gold rounded-full flex items-center justify-center font-bold text-sm">
+                          {msg.name ? msg.name.charAt(0).toUpperCase() : 'U'}
+                        </span>
+                        <div>
+                          <h4 className="font-serif text-base font-bold text-studio-charcoal">{msg.name}</h4>
+                          <span className="text-[11px] text-studio-warmGray">{msg.date}</span>
+                        </div>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <span className="px-2.5 py-0.5 bg-studio-gold/10 text-studio-gold text-[10px] font-bold uppercase rounded border border-studio-gold/20">
+                          {msg.type || 'Direct Message'}
+                        </span>
+                        <button
+                          onClick={() => {
+                            deleteMessage(msg.id);
+                            showToast('Message deleted');
+                          }}
+                          className="px-3 py-1 bg-red-50 text-red-600 hover:bg-red-100 text-xs font-semibold rounded transition-colors"
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="bg-studio-cream/40 p-4 rounded-xl border border-studio-gold/10 text-xs text-studio-charcoal leading-relaxed whitespace-pre-wrap font-sans">
+                      {msg.message}
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-4 text-xs pt-1">
+                      {msg.phone && (
+                        <a
+                          href={`tel:${msg.phone}`}
+                          className="flex items-center text-studio-charcoal hover:text-studio-gold font-medium"
+                        >
+                          <Phone className="w-3.5 h-3.5 mr-1 text-studio-gold" /> {msg.phone}
+                        </a>
+                      )}
+                      {msg.phone && (
+                        <a
+                          href={`https://wa.me/91${msg.phone.replace(/[^0-9]/g, '')}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center text-emerald-700 hover:text-emerald-600 font-semibold"
+                        >
+                          <MessageCircle className="w-3.5 h-3.5 mr-1" /> WhatsApp Reply
+                        </a>
+                      )}
+                      {msg.email && (
+                        <a
+                          href={`mailto:${msg.email}`}
+                          className="flex items-center text-studio-charcoal hover:text-studio-gold font-medium"
+                        >
+                          <Mail className="w-3.5 h-3.5 mr-1 text-studio-gold" /> {msg.email}
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
