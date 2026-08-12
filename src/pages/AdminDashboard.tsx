@@ -66,6 +66,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ setCurrentPage }
     return localStorage.getItem('bright_to_bride_imgbb_key') || '';
   });
 
+  const [optionAUrl, setOptionAUrl] = useState('');
+  const [optionATarget, setOptionATarget] = useState('photographer');
+
   const showToast = (msg: string) => {
     setSaveNotification(msg);
     setTimeout(() => setSaveNotification(null), 3000);
@@ -80,6 +83,27 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ setCurrentPage }
       setAuthError(false);
       setPasswordInput('');
     }
+  };
+
+  const handleOptionAApply = () => {
+    if (!optionAUrl.trim()) {
+      showToast('⚠️ Please paste a valid image web URL!');
+      return;
+    }
+    const url = optionAUrl.trim();
+    if (optionATarget === 'photographer') {
+      updateAboutPhotographerImage(url);
+    } else if (optionATarget === 'hero') {
+      updateHeroImage(url);
+    } else if (optionATarget === 'story') {
+      updateHomeStoryImage(url);
+    } else if (optionATarget.startsWith('service-')) {
+      updateServiceImage(optionATarget, url);
+    } else if (optionATarget.startsWith('insta-')) {
+      updateInstagramImage(optionATarget, url);
+    }
+    setOptionAUrl('');
+    showToast('⚡ Option A: Photo URL applied & synced live to all devices!');
   };
 
   const saveImgbbKey = (key: string) => {
@@ -312,6 +336,55 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ setCurrentPage }
               className="px-4 py-2.5 bg-studio-charcoal text-studio-cream hover:bg-studio-gold hover:text-studio-charcoal rounded-lg text-xs uppercase tracking-widest font-medium transition-all flex items-center shadow-sm"
             >
               <LogOut className="w-3.5 h-3.5 mr-1.5" /> Logout
+            </button>
+          </div>
+        </div>
+
+        {/* Option A: Instant Web Image URL Sync Quick Bar */}
+        <div className="bg-gradient-to-r from-studio-cream/90 via-white to-studio-cream/90 p-5 rounded-2xl border border-studio-gold/40 shadow-sm space-y-3">
+          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-3">
+            <div className="space-y-1">
+              <div className="flex items-center space-x-2">
+                <span className="bg-studio-gold text-studio-charcoal text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded shadow-xs">
+                  ⚡ Option A: Instant Web Image URL Sync
+                </span>
+                <span className="text-xs font-semibold text-studio-charcoal">No Signup Required • Works on All Devices</span>
+              </div>
+              <p className="text-xs text-studio-warmGray max-w-3xl leading-relaxed">
+                Paste any web image link (Imgur, PostImages, Unsplash, Google Drive image link, ImgBB, etc.) to update photos across all phones, tablets & Incognito mode in <strong>&lt;100ms</strong>.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex flex-col md:flex-row items-center gap-3 pt-2 border-t border-studio-gold/15">
+            <select
+              value={optionATarget}
+              onChange={(e) => setOptionATarget(e.target.value)}
+              className="w-full md:w-64 px-3 py-2 bg-white border border-studio-gold/30 rounded-lg text-xs font-semibold text-studio-charcoal focus:outline-none focus:border-studio-gold"
+            >
+              <option value="photographer">👤 Photographer Profile (Arisiva S)</option>
+              <option value="hero">🌅 Homepage Hero Background</option>
+              <option value="story">📖 Homepage Story Feature Photo</option>
+              <option value="service-1">💍 Service: Traditional Tamil Weddings</option>
+              <option value="service-2">🔥 Service: Muhurtham & Pre-Wedding</option>
+              <option value="service-3">👑 Service: Childhood Rites & Puberty</option>
+              <option value="service-4">🎉 Service: Family Celebrations</option>
+              <option value="service-5">👶 Service: Maternity & Baby Ceremonies</option>
+            </select>
+
+            <input
+              type="text"
+              value={optionAUrl}
+              onChange={(e) => setOptionAUrl(e.target.value)}
+              placeholder="Paste image web URL (e.g. https://images.unsplash.com/... or https://i.ibb.co/...)"
+              className="w-full md:flex-grow px-3.5 py-2 bg-white border border-studio-gold/30 text-studio-charcoal placeholder-studio-warmGray/60 text-xs rounded-lg font-mono focus:outline-none focus:border-studio-gold"
+            />
+
+            <button
+              onClick={handleOptionAApply}
+              className="w-full md:w-auto px-5 py-2 bg-studio-gold hover:bg-studio-charcoal text-studio-charcoal hover:text-studio-cream rounded-lg text-xs uppercase tracking-wider font-bold transition-all whitespace-nowrap shadow-sm"
+            >
+              Apply URL & Sync Live ⚡
             </button>
           </div>
         </div>
