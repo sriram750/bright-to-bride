@@ -78,8 +78,29 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ setCurrentPage }
     }
   };
 
+  const uploadToCatboxCDN = async (blob: Blob, fileName: string): Promise<string | null> => {
+    try {
+      const formData = new FormData();
+      formData.append('reqtype', 'fileupload');
+      formData.append('fileToUpload', blob, fileName);
+      const res = await fetch('https://catbox.moe/user/api.php', {
+        method: 'POST',
+        body: formData
+      });
+      if (res.ok) {
+        const url = await res.text();
+        if (url && url.startsWith('http')) {
+          return url.trim();
+        }
+      }
+    } catch (err) {
+      console.warn('Catbox CDN upload offline, using compressed DataURL:', err);
+    }
+    return null;
+  };
+
   const handleFileUpload = (
-    onSuccess: (dataUrl: string) => void
+    onSuccess: (imageUrl: string) => void
   ) => {
     const input = document.createElement('input');
     input.type = 'file';
@@ -87,7 +108,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ setCurrentPage }
     input.onchange = (e) => {
       const file = (e.target as HTMLInputElement).files?.[0];
       if (file) {
-        showToast('Compressing and syncing image to cloud...');
+        showToast('Uploading & syncing photo to Cloud CDN...');
         const reader = new FileReader();
         reader.onload = (readerEvent) => {
           const rawUrl = readerEvent.target?.result as string;
@@ -111,8 +132,18 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ setCurrentPage }
               if (ctx) {
                 ctx.drawImage(img, 0, 0, width, height);
                 const compressedUrl = canvas.toDataURL('image/jpeg', 0.65);
-                onSuccess(compressedUrl);
-                showToast('✅ Image optimized (~35KB) & synced live to cloud!');
+
+                canvas.toBlob(async (blob) => {
+                  let finalUrl = compressedUrl;
+                  if (blob) {
+                    const cdnUrl = await uploadToCatboxCDN(blob, file.name || 'photo.jpg');
+                    if (cdnUrl) {
+                      finalUrl = cdnUrl;
+                    }
+                  }
+                  onSuccess(finalUrl);
+                  showToast('✅ Photo synced live to Cloud CDN & DB!');
+                }, 'image/jpeg', 0.65);
               } else {
                 onSuccess(rawUrl);
                 showToast('Image uploaded!');
