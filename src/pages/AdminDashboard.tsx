@@ -62,6 +62,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ setCurrentPage }
   const [jsonInput, setJsonInput] = useState('');
   const [jsonError, setJsonError] = useState(false);
 
+  const [imgbbApiKey, setImgbbApiKey] = useState<string>(() => {
+    return localStorage.getItem('bright_to_bride_imgbb_key') || '';
+  });
+
   const showToast = (msg: string) => {
     setSaveNotification(msg);
     setTimeout(() => setSaveNotification(null), 3000);
@@ -78,15 +82,53 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ setCurrentPage }
     }
   };
 
+  const saveImgbbKey = (key: string) => {
+    setImgbbApiKey(key);
+    localStorage.setItem('bright_to_bride_imgbb_key', key.trim());
+    showToast('Saved ImgBB API Key!');
+  };
+
+  const uploadToImgBB = async (file: File, key: string): Promise<string | null> => {
+    try {
+      const formData = new FormData();
+      formData.append('image', file);
+      const res = await fetch(`https://api.imgbb.com/1/upload?key=${key.trim()}`, {
+        method: 'POST',
+        body: formData
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.data?.url) {
+          return data.data.url;
+        }
+      }
+    } catch (err) {
+      console.warn('ImgBB upload error, falling back to local compression:', err);
+    }
+    return null;
+  };
+
   const handleFileUpload = (
-    onSuccess: (dataUrl: string) => void
+    onSuccess: (imageUrl: string) => void
   ) => {
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = 'image/*';
-    input.onchange = (e) => {
+    input.onchange = async (e) => {
       const file = (e.target as HTMLInputElement).files?.[0];
       if (file) {
+        // 1. Try ImgBB Cloud Upload if key is provided
+        if (imgbbApiKey.trim()) {
+          showToast('Uploading photo to ImgBB Cloud CDN...');
+          const cdnUrl = await uploadToImgBB(file, imgbbApiKey);
+          if (cdnUrl) {
+            onSuccess(cdnUrl);
+            showToast('✅ Photo hosted on ImgBB CDN & synced live!');
+            return;
+          }
+        }
+
+        // 2. Fallback: Compress locally to lightweight Base64
         showToast('Compressing and syncing photo to Cloud...');
         const reader = new FileReader();
         reader.onload = (readerEvent) => {
@@ -270,6 +312,48 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ setCurrentPage }
               className="px-4 py-2.5 bg-studio-charcoal text-studio-cream hover:bg-studio-gold hover:text-studio-charcoal rounded-lg text-xs uppercase tracking-widest font-medium transition-all flex items-center shadow-sm"
             >
               <LogOut className="w-3.5 h-3.5 mr-1.5" /> Logout
+            </button>
+          </div>
+        </div>
+
+        {/* Option B: Free Cloud Image Storage Settings (ImgBB API Key) */}
+        <div className="bg-gradient-to-r from-studio-charcoal via-studio-charcoal/95 to-studio-charcoal p-5 rounded-2xl border border-studio-gold/40 text-studio-cream shadow-md space-y-3">
+          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+            <div className="space-y-1">
+              <div className="flex items-center space-x-2">
+                <span className="bg-studio-gold/20 text-studio-gold text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded border border-studio-gold/30">
+                  ☁️ Option B: Free Cloud Image Storage
+                </span>
+                <span className="text-xs text-studio-cream/80">ImgBB Direct CDN Uploader</span>
+              </div>
+              <p className="text-xs text-studio-cream/80 font-light max-w-3xl">
+                Upload image files directly from your computer or phone to a free permanent Cloud CDN (ImgBB). Hosted image URLs will sync instantly to all devices and Incognito windows.
+              </p>
+            </div>
+            
+            <a
+              href="https://api.imgbb.com/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-3.5 py-2 bg-studio-gold hover:bg-studio-cream text-studio-charcoal rounded-lg text-xs font-bold uppercase tracking-wider transition-colors flex-shrink-0 flex items-center shadow"
+            >
+              Get Free ImgBB Key ↗
+            </a>
+          </div>
+
+          <div className="flex flex-col sm:flex-row items-center gap-3 pt-2 border-t border-white/10">
+            <input
+              type="text"
+              value={imgbbApiKey}
+              onChange={(e) => setImgbbApiKey(e.target.value)}
+              placeholder="Paste your free ImgBB API Key here (e.g. 6d70279536e59069...)"
+              className="w-full sm:flex-grow px-3.5 py-2 bg-black/40 border border-studio-gold/40 text-studio-cream placeholder-white/40 text-xs rounded-lg font-mono focus:outline-none focus:border-studio-gold"
+            />
+            <button
+              onClick={() => saveImgbbKey(imgbbApiKey)}
+              className="w-full sm:w-auto px-5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs uppercase tracking-wider font-bold transition-colors whitespace-nowrap"
+            >
+              Save Key
             </button>
           </div>
         </div>
