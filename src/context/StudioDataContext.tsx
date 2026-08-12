@@ -128,7 +128,7 @@ interface StudioDataContextType {
 
 const STORAGE_KEY = 'bright_to_bride_custom_data_v2';
 const AUTH_KEY = 'bright_to_bride_admin_auth';
-const CLOUD_STORAGE_URL = 'https://api.restful-api.dev/objects/ff8081819ff5b110019ff7537608048e';
+const CLOUD_STORAGE_URL = 'https://extendsclass.com/api/json-storage/bin/dfcfdea';
 
 const StudioDataContext = createContext<StudioDataContextType | undefined>(undefined);
 
@@ -194,8 +194,7 @@ export const StudioDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     try {
       const cloudRes = await fetch(CLOUD_STORAGE_URL, { cache: 'no-store' });
       if (cloudRes.ok) {
-        const json = await cloudRes.json();
-        const data = json.data || json;
+        const data = await cloudRes.json();
         if (data && (data.services || data.activePresetId || data.heroImage || data.aboutPhotographerImage || data.homeStoryImage || data.instagramImages || data.messages)) {
           applyData(data);
           try {
@@ -332,10 +331,7 @@ export const StudioDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       await fetch(CLOUD_STORAGE_URL, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: 'bright_to_bride_studio_v2',
-          data: payload
-        })
+        body: JSON.stringify(payload)
       });
     } catch (err) {
       console.warn('Could not sync to cloud API:', err);
