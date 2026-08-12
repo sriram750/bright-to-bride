@@ -128,6 +128,7 @@ interface StudioDataContextType {
 
 const STORAGE_KEY = 'bright_to_bride_custom_data_v2';
 const AUTH_KEY = 'bright_to_bride_admin_auth';
+const CLOUD_STORAGE_URL = 'https://api.restful-api.dev/objects/ff8081819ff5b110019ff7537608048e';
 
 const StudioDataContext = createContext<StudioDataContextType | undefined>(undefined);
 
@@ -172,13 +173,11 @@ export const StudioDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     }
   };
 
-  // Fetch live server data on startup so Incognito tabs and all browsers get updated photos
+  // Fetch live server & cloud data on startup so Incognito tabs and all devices get updated photos on Vercel
   const fetchServerData = async () => {
+    // 1. Try local dev endpoint
     try {
-      let res = await fetch('/api/studio-data', { cache: 'no-store' });
-      if (!res.ok) {
-        res = await fetch('/studio-data.json', { cache: 'no-store' });
-      }
+      const res = await fetch('/api/studio-data', { cache: 'no-store' });
       if (res.ok) {
         const data = await res.json();
         if (data && (data.services || data.activePresetId || data.heroImage || data.aboutPhotographerImage || data.homeStoryImage || data.instagramImages || data.messages)) {
@@ -189,13 +188,42 @@ export const StudioDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
           return true;
         }
       }
+    } catch {}
+
+    // 2. Try global persistent cloud store (works on Vercel live site, Incognito mode & across all devices)
+    try {
+      const cloudRes = await fetch(CLOUD_STORAGE_URL, { cache: 'no-store' });
+      if (cloudRes.ok) {
+        const json = await cloudRes.json();
+        const data = json.data || json;
+        if (data && (data.services || data.activePresetId || data.heroImage || data.aboutPhotographerImage || data.homeStoryImage || data.instagramImages || data.messages)) {
+          applyData(data);
+          try {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+          } catch {}
+          return true;
+        }
+      }
     } catch (err) {
-      console.warn('Server data fetch offline, using local cache:', err);
+      console.warn('Cloud fetch offline, using local cache:', err);
     }
+
+    // 3. Fallback to static JSON file
+    try {
+      const staticRes = await fetch('/studio-data.json', { cache: 'no-store' });
+      if (staticRes.ok) {
+        const data = await staticRes.json();
+        if (data && (data.services || data.activePresetId || data.heroImage || data.aboutPhotographerImage || data.homeStoryImage || data.instagramImages || data.messages)) {
+          applyData(data);
+          return true;
+        }
+      }
+    } catch {}
+
     return false;
   };
 
-  // Load persisted customizations on startup + live cross-tab storage event sync + server fetch
+  // Load persisted customizations on startup + live cross-tab storage event sync + server/cloud fetch
   useEffect(() => {
     // 1. Load initial local storage data if present
     try {
@@ -207,7 +235,7 @@ export const StudioDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       console.error('Failed to parse saved studio data from localStorage:', err);
     }
 
-    // 2. Fetch fresh server data for Private/Incognito windows & all tabs
+    // 2. Fetch fresh server/cloud data for Private/Incognito windows & all tabs
     fetchServerData();
 
     // 3. Real-time listener for multi-tab localStorage synchronization
@@ -239,7 +267,7 @@ export const StudioDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     };
   }, []);
 
-  // Save changes instantly to localStorage, React Context, Server DB, and BroadcastChannel
+  // Save changes instantly to localStorage, React Context, Server DB, Cloud DB, and BroadcastChannel
   const saveState = async (updatedState: {
     activePresetId?: string;
     bannerEnabled?: boolean;
@@ -290,15 +318,27 @@ export const StudioDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       }
     } catch {}
 
-    // 3. Push to Server DB (/api/studio-data) so Private/Incognito tabs and all devices see updated photos
+    // 3. Push to Local Dev Server (/api/studio-data)
     try {
       await fetch('/api/studio-data', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
+    } catch {}
+
+    // 4. Push to Global Persistent Cloud DB (Syncs Vercel production live site for Incognito & all devices)
+    try {
+      await fetch(CLOUD_STORAGE_URL, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: 'bright_to_bride_studio_v2',
+          data: payload
+        })
+      });
     } catch (err) {
-      console.warn('Could not sync to server API:', err);
+      console.warn('Could not sync to cloud API:', err);
     }
   };
 
