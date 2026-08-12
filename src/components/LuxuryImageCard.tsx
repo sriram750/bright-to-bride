@@ -122,6 +122,12 @@ export const LuxuryImageCard: React.FC<LuxuryImageCardProps> = ({
         <motion.img
           src={src}
           alt={alt}
+          onError={(e) => {
+            const target = e.target as HTMLImageElement;
+            if (target.src !== '/images/photographer_arisiva.png') {
+              target.src = '/images/photographer_arisiva.png';
+            }
+          }}
           style={{
             x: shouldReduceMotion ? 0 : imgTranslateX,
             y: shouldReduceMotion ? 0 : imgTranslateY,

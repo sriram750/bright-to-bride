@@ -156,9 +156,17 @@ export const StudioDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     if (parsed.activePresetId) setActivePresetId(parsed.activePresetId);
     if (parsed.bannerEnabled !== undefined) setBannerEnabled(parsed.bannerEnabled);
     if (parsed.bannerText) setBannerText(parsed.bannerText);
-    if (parsed.heroImage) setHeroImage(parsed.heroImage);
-    if (parsed.aboutPhotographerImage) setAboutPhotographerImage(parsed.aboutPhotographerImage);
-    if (parsed.homeStoryImage) setHomeStoryImage(parsed.homeStoryImage);
+    if (parsed.heroImage && typeof parsed.heroImage === 'string' && parsed.heroImage.length > 10) {
+      setHeroImage(parsed.heroImage);
+    }
+    if (parsed.aboutPhotographerImage && typeof parsed.aboutPhotographerImage === 'string' && parsed.aboutPhotographerImage.length > 50 && !parsed.aboutPhotographerImage.includes('AAAAAAA')) {
+      setAboutPhotographerImage(parsed.aboutPhotographerImage);
+    } else if (parsed.aboutPhotographerImage && parsed.aboutPhotographerImage.includes('AAAAAAA')) {
+      setAboutPhotographerImage('/images/photographer_arisiva.png');
+    }
+    if (parsed.homeStoryImage && typeof parsed.homeStoryImage === 'string' && parsed.homeStoryImage.length > 10) {
+      setHomeStoryImage(parsed.homeStoryImage);
+    }
     if (parsed.services && Array.isArray(parsed.services) && parsed.services.length > 0) {
       setServices(parsed.services);
     }
