@@ -128,7 +128,6 @@ interface StudioDataContextType {
 
 const STORAGE_KEY = 'bright_to_bride_custom_data_v2';
 const AUTH_KEY = 'bright_to_bride_admin_auth';
-const CLOUD_STORAGE_URL = 'https://extendsclass.com/api/json-storage/bin/dfcfdea';
 
 const StudioDataContext = createContext<StudioDataContextType | undefined>(undefined);
 
@@ -181,9 +180,9 @@ export const StudioDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     }
   };
 
-  // Fetch live server & cloud data on startup so Incognito tabs and all devices get updated photos on Vercel
+  // Fetch live server data on startup so Incognito tabs and all devices get updated photos
   const fetchServerData = async () => {
-    // 1. Try local dev endpoint
+    // 1. Try server endpoint (/api/studio-data - handled by Vite plugin locally & Vercel in production)
     try {
       const res = await fetch('/api/studio-data', { cache: 'no-store' });
       if (res.ok) {
@@ -198,24 +197,7 @@ export const StudioDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       }
     } catch {}
 
-    // 2. Try global persistent cloud store (works on Vercel live site, Incognito mode & across all devices)
-    try {
-      const cloudRes = await fetch(CLOUD_STORAGE_URL, { cache: 'no-store' });
-      if (cloudRes.ok) {
-        const data = await cloudRes.json();
-        if (data && (data.services || data.activePresetId || data.heroImage || data.aboutPhotographerImage || data.homeStoryImage || data.instagramImages || data.messages)) {
-          applyData(data);
-          try {
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-          } catch {}
-          return true;
-        }
-      }
-    } catch (err) {
-      console.warn('Cloud fetch offline, using local cache:', err);
-    }
-
-    // 3. Fallback to static JSON file
+    // 2. Fallback to static JSON file
     try {
       const staticRes = await fetch('/studio-data.json', { cache: 'no-store' });
       if (staticRes.ok) {
@@ -230,7 +212,7 @@ export const StudioDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     return false;
   };
 
-  // Load persisted customizations on startup + live cross-tab storage event sync + server/cloud fetch
+  // Load persisted customizations on startup + live cross-tab storage event sync + server fetch
   useEffect(() => {
     // 1. Load initial local storage data if present
     try {
@@ -242,7 +224,7 @@ export const StudioDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       console.error('Failed to parse saved studio data from localStorage:', err);
     }
 
-    // 2. Fetch fresh server/cloud data for Private/Incognito windows & all tabs
+    // 2. Fetch fresh server data for Private/Incognito windows & all tabs
     fetchServerData();
 
     // 3. Real-time listener for multi-tab localStorage synchronization
@@ -274,7 +256,7 @@ export const StudioDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     };
   }, []);
 
-  // Save changes instantly to localStorage, React Context, Server DB, Cloud DB, and BroadcastChannel
+  // Save changes instantly to localStorage, React Context, Server API, and BroadcastChannel
   const saveState = async (updatedState: {
     activePresetId?: string;
     bannerEnabled?: boolean;
@@ -325,25 +307,13 @@ export const StudioDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       }
     } catch {}
 
-    // 3. Push to Local Dev Server (/api/studio-data) if present
+    // 3. Push to Server Endpoint (/api/studio-data)
     fetch('/api/studio-data', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
-    }).catch(() => {});
-
-    // 4. Push to Global Persistent Cloud DB (Syncs Vercel live site for Incognito & all devices)
-    // Note: Using 'text/plain' prevents browser CORS OPTIONS preflight 500 errors on ExtendsClass
-    fetch(CLOUD_STORAGE_URL, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'text/plain' },
-      body: JSON.stringify(payload)
-    }).then(res => {
-      if (res.ok) {
-        console.log('✅ Cloud DB successfully synced!');
-      }
     }).catch((err) => {
-      console.warn('Cloud storage sync offline:', err);
+      console.warn('Server sync note:', err);
     });
   };
 
