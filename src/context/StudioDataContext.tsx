@@ -325,25 +325,26 @@ export const StudioDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       }
     } catch {}
 
-    // 3. Push to Local Dev Server (/api/studio-data)
-    try {
-      await fetch('/api/studio-data', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-    } catch {}
+    // 3. Push to Local Dev Server (/api/studio-data) if present
+    fetch('/api/studio-data', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    }).catch(() => {});
 
-    // 4. Push to Global Persistent Cloud DB (Syncs Vercel production live site for Incognito & all devices)
-    try {
-      await fetch(CLOUD_STORAGE_URL, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-    } catch (err) {
-      console.warn('Could not sync to cloud API:', err);
-    }
+    // 4. Push to Global Persistent Cloud DB (Syncs Vercel live site for Incognito & all devices)
+    // Note: Using 'text/plain' prevents browser CORS OPTIONS preflight 500 errors on ExtendsClass
+    fetch(CLOUD_STORAGE_URL, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify(payload)
+    }).then(res => {
+      if (res.ok) {
+        console.log('✅ Cloud DB successfully synced!');
+      }
+    }).catch((err) => {
+      console.warn('Cloud storage sync offline:', err);
+    });
   };
 
   const login = (password: string): boolean => {
@@ -568,7 +569,7 @@ export const StudioDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         resetToDefaults,
         exportConfigJson,
         importConfigJson,
-        syncWithCloud: async () => true
+        syncWithCloud: fetchServerData
       }}
     >
       {children}
