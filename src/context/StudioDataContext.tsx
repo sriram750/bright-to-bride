@@ -155,16 +155,14 @@ export const StudioDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     if (parsed.activePresetId) setActivePresetId(parsed.activePresetId);
     if (parsed.bannerEnabled !== undefined) setBannerEnabled(parsed.bannerEnabled);
     if (parsed.bannerText) setBannerText(parsed.bannerText);
-    if (parsed.heroImage && typeof parsed.heroImage === 'string' && parsed.heroImage.length > 10) {
-      setHeroImage(parsed.heroImage);
+    if (parsed.heroImage && typeof parsed.heroImage === 'string' && parsed.heroImage.trim().length > 0) {
+      setHeroImage(parsed.heroImage.trim());
     }
-    if (parsed.aboutPhotographerImage && typeof parsed.aboutPhotographerImage === 'string' && parsed.aboutPhotographerImage.length > 50 && !parsed.aboutPhotographerImage.includes('AAAAAAA')) {
-      setAboutPhotographerImage(parsed.aboutPhotographerImage);
-    } else if (parsed.aboutPhotographerImage && parsed.aboutPhotographerImage.includes('AAAAAAA')) {
-      setAboutPhotographerImage('/images/photographer_arisiva.png');
+    if (parsed.aboutPhotographerImage && typeof parsed.aboutPhotographerImage === 'string' && parsed.aboutPhotographerImage.trim().length > 0) {
+      setAboutPhotographerImage(parsed.aboutPhotographerImage.trim());
     }
-    if (parsed.homeStoryImage && typeof parsed.homeStoryImage === 'string' && parsed.homeStoryImage.length > 10) {
-      setHomeStoryImage(parsed.homeStoryImage);
+    if (parsed.homeStoryImage && typeof parsed.homeStoryImage === 'string' && parsed.homeStoryImage.trim().length > 0) {
+      setHomeStoryImage(parsed.homeStoryImage.trim());
     }
     if (parsed.services && Array.isArray(parsed.services) && parsed.services.length > 0) {
       setServices(parsed.services);
