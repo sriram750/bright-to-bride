@@ -62,13 +62,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ setCurrentPage }
   const [jsonInput, setJsonInput] = useState('');
   const [jsonError, setJsonError] = useState(false);
 
-  const [imgbbApiKey, setImgbbApiKey] = useState<string>(() => {
-    return localStorage.getItem('bright_to_bride_imgbb_key') || '';
-  });
-
-  const [optionAUrl, setOptionAUrl] = useState('');
-  const [optionATarget, setOptionATarget] = useState('photographer');
-
   const showToast = (msg: string) => {
     setSaveNotification(msg);
     setTimeout(() => setSaveNotification(null), 3000);
@@ -85,53 +78,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ setCurrentPage }
     }
   };
 
-  const handleOptionAApply = () => {
-    if (!optionAUrl.trim()) {
-      showToast('⚠️ Please paste a valid image web URL!');
-      return;
-    }
-    const url = optionAUrl.trim();
-    if (optionATarget === 'photographer') {
-      updateAboutPhotographerImage(url);
-    } else if (optionATarget === 'hero') {
-      updateHeroImage(url);
-    } else if (optionATarget === 'story') {
-      updateHomeStoryImage(url);
-    } else if (optionATarget.startsWith('service-')) {
-      updateServiceImage(optionATarget, url);
-    } else if (optionATarget.startsWith('insta-')) {
-      updateInstagramImage(optionATarget, url);
-    }
-    setOptionAUrl('');
-    showToast('⚡ Option A: Photo URL applied & synced live to all devices!');
-  };
-
-  const saveImgbbKey = (key: string) => {
-    setImgbbApiKey(key);
-    localStorage.setItem('bright_to_bride_imgbb_key', key.trim());
-    showToast('Saved ImgBB API Key!');
-  };
-
-  const uploadToImgBB = async (file: File, key: string): Promise<string | null> => {
-    try {
-      const formData = new FormData();
-      formData.append('image', file);
-      const res = await fetch(`https://api.imgbb.com/1/upload?key=${key.trim()}`, {
-        method: 'POST',
-        body: formData
-      });
-      if (res.ok) {
-        const data = await res.json();
-        if (data.data?.url) {
-          return data.data.url;
-        }
-      }
-    } catch (err) {
-      console.warn('ImgBB upload error, falling back to local compression:', err);
-    }
-    return null;
-  };
-
   const handleFileUpload = (
     onSuccess: (imageUrl: string) => void
   ) => {
@@ -141,19 +87,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ setCurrentPage }
     input.onchange = async (e) => {
       const file = (e.target as HTMLInputElement).files?.[0];
       if (file) {
-        // 1. Try ImgBB Cloud Upload if key is provided
-        if (imgbbApiKey.trim()) {
-          showToast('Uploading photo to ImgBB Cloud CDN...');
-          const cdnUrl = await uploadToImgBB(file, imgbbApiKey);
-          if (cdnUrl) {
-            onSuccess(cdnUrl);
-            showToast('✅ Photo hosted on ImgBB CDN & synced live!');
-            return;
-          }
-        }
-
-        // 2. Fallback: Compress locally to lightweight Base64
-        showToast('Compressing and syncing photo to Cloud...');
+        showToast('Optimizing and saving photo...');
         const reader = new FileReader();
         reader.onload = (readerEvent) => {
           const rawUrl = readerEvent.target?.result as string;
@@ -161,7 +95,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ setCurrentPage }
             const img = new Image();
             img.onload = () => {
               const canvas = document.createElement('canvas');
-              const maxWidth = 500;
+              const maxWidth = 600;
               let width = img.width;
               let height = img.height;
 
@@ -176,9 +110,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ setCurrentPage }
               const ctx = canvas.getContext('2d');
               if (ctx) {
                 ctx.drawImage(img, 0, 0, width, height);
-                const compressedUrl = canvas.toDataURL('image/jpeg', 0.50);
+                const compressedUrl = canvas.toDataURL('image/jpeg', 0.60);
                 onSuccess(compressedUrl);
-                showToast('✅ Photo optimized (~15KB) & synced live to Cloud!');
+                showToast('✅ Photo updated successfully!');
               } else {
                 onSuccess(rawUrl);
                 showToast('Image uploaded!');
@@ -340,96 +274,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ setCurrentPage }
           </div>
         </div>
 
-        {/* Option A: Instant Web Image URL Sync Quick Bar */}
-        <div className="bg-gradient-to-r from-studio-cream/90 via-white to-studio-cream/90 p-5 rounded-2xl border border-studio-gold/40 shadow-sm space-y-3">
-          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-3">
-            <div className="space-y-1">
-              <div className="flex items-center space-x-2">
-                <span className="bg-studio-gold text-studio-charcoal text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded shadow-xs">
-                  ⚡ Option A: Instant Web Image URL Sync
-                </span>
-                <span className="text-xs font-semibold text-studio-charcoal">No Signup Required • Works on All Devices</span>
-              </div>
-              <p className="text-xs text-studio-warmGray max-w-3xl leading-relaxed">
-                Paste any web image link (Imgur, PostImages, Unsplash, Google Drive image link, ImgBB, etc.) to update photos across all phones, tablets & Incognito mode in <strong>&lt;100ms</strong>.
-              </p>
-            </div>
-          </div>
 
-          <div className="flex flex-col md:flex-row items-center gap-3 pt-2 border-t border-studio-gold/15">
-            <select
-              value={optionATarget}
-              onChange={(e) => setOptionATarget(e.target.value)}
-              className="w-full md:w-64 px-3 py-2 bg-white border border-studio-gold/30 rounded-lg text-xs font-semibold text-studio-charcoal focus:outline-none focus:border-studio-gold"
-            >
-              <option value="photographer">👤 Photographer Profile (Arisiva S)</option>
-              <option value="hero">🌅 Homepage Hero Background</option>
-              <option value="story">📖 Homepage Story Feature Photo</option>
-              <option value="service-1">💍 Service: Traditional Tamil Weddings</option>
-              <option value="service-2">🔥 Service: Muhurtham & Pre-Wedding</option>
-              <option value="service-3">👑 Service: Childhood Rites & Puberty</option>
-              <option value="service-4">🎉 Service: Family Celebrations</option>
-              <option value="service-5">👶 Service: Maternity & Baby Ceremonies</option>
-            </select>
-
-            <input
-              type="text"
-              value={optionAUrl}
-              onChange={(e) => setOptionAUrl(e.target.value)}
-              placeholder="Paste image web URL (e.g. https://images.unsplash.com/... or https://i.ibb.co/...)"
-              className="w-full md:flex-grow px-3.5 py-2 bg-white border border-studio-gold/30 text-studio-charcoal placeholder-studio-warmGray/60 text-xs rounded-lg font-mono focus:outline-none focus:border-studio-gold"
-            />
-
-            <button
-              onClick={handleOptionAApply}
-              className="w-full md:w-auto px-5 py-2 bg-studio-gold hover:bg-studio-charcoal text-studio-charcoal hover:text-studio-cream rounded-lg text-xs uppercase tracking-wider font-bold transition-all whitespace-nowrap shadow-sm"
-            >
-              Apply URL & Sync Live ⚡
-            </button>
-          </div>
-        </div>
-
-        {/* Option B: Free Cloud Image Storage Settings (ImgBB API Key) */}
-        <div className="bg-gradient-to-r from-studio-charcoal via-studio-charcoal/95 to-studio-charcoal p-5 rounded-2xl border border-studio-gold/40 text-studio-cream shadow-md space-y-3">
-          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-            <div className="space-y-1">
-              <div className="flex items-center space-x-2">
-                <span className="bg-studio-gold/20 text-studio-gold text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded border border-studio-gold/30">
-                  ☁️ Option B: Free Cloud Image Storage
-                </span>
-                <span className="text-xs text-studio-cream/80">ImgBB Direct CDN Uploader</span>
-              </div>
-              <p className="text-xs text-studio-cream/80 font-light max-w-3xl">
-                Upload image files directly from your computer or phone to a free permanent Cloud CDN (ImgBB). Hosted image URLs will sync instantly to all devices and Incognito windows.
-              </p>
-            </div>
-            
-            <a
-              href="https://api.imgbb.com/"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="px-3.5 py-2 bg-studio-gold hover:bg-studio-cream text-studio-charcoal rounded-lg text-xs font-bold uppercase tracking-wider transition-colors flex-shrink-0 flex items-center shadow"
-            >
-              Get Free ImgBB Key ↗
-            </a>
-          </div>
-
-          <div className="flex flex-col sm:flex-row items-center gap-3 pt-2 border-t border-white/10">
-            <input
-              type="text"
-              value={imgbbApiKey}
-              onChange={(e) => setImgbbApiKey(e.target.value)}
-              placeholder="Paste your free ImgBB API Key here (e.g. 6d70279536e59069...)"
-              className="w-full sm:flex-grow px-3.5 py-2 bg-black/40 border border-studio-gold/40 text-studio-cream placeholder-white/40 text-xs rounded-lg font-mono focus:outline-none focus:border-studio-gold"
-            />
-            <button
-              onClick={() => saveImgbbKey(imgbbApiKey)}
-              className="w-full sm:w-auto px-5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs uppercase tracking-wider font-bold transition-colors whitespace-nowrap"
-            >
-              Save Key
-            </button>
-          </div>
-        </div>
 
         {/* Tab Navigation */}
         <div className="flex space-x-2 border-b border-studio-gold/20 overflow-x-auto pb-1">
