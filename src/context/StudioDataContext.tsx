@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import {
   studioInfo,
   servicesData,
@@ -11,6 +11,11 @@ import type {
   PackageItem,
   TestimonialItem
 } from '../data/studioData';
+import {
+  saveToStorageEngine,
+  loadFromStorageEngine,
+  clearStorageEngine
+} from '../utils/storageEngine';
 
 export interface PortfolioItem {
   id: string;
@@ -149,9 +154,18 @@ export const StudioDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const [packages] = useState<PackageItem[]>(packagesData);
   const [testimonials] = useState<TestimonialItem[]>(testimonialsData);
 
-  // Helper to apply parsed data to state
+  const lastUpdatedRef = useRef<string | null>(null);
+  const hasLocalCustomDataRef = useRef<boolean>(false);
+
+  // Helper to apply parsed data to state safely
   const applyData = (parsed: any) => {
-    if (!parsed) return;
+    if (!parsed || parsed.empty) return;
+
+    if (parsed.lastUpdated) {
+      lastUpdatedRef.current = parsed.lastUpdated;
+      hasLocalCustomDataRef.current = true;
+    }
+
     if (parsed.activePresetId) setActivePresetId(parsed.activePresetId);
     if (parsed.bannerEnabled !== undefined) setBannerEnabled(parsed.bannerEnabled);
     if (parsed.bannerText) setBannerText(parsed.bannerText);
@@ -178,52 +192,61 @@ export const StudioDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     }
   };
 
-  // Fetch live server data on startup so Incognito tabs and all devices get updated photos
+  // Fetch live server data safely without overwriting local custom data
   const fetchServerData = async () => {
-    // 1. Try server endpoint (/api/studio-data - handled by Vite plugin locally & Vercel in production)
+    // 1. Try server endpoint (/api/studio-data)
     try {
       const res = await fetch('/api/studio-data', { cache: 'no-store' });
       if (res.ok) {
         const data = await res.json();
-        if (data && (data.services || data.activePresetId || data.heroImage || data.aboutPhotographerImage || data.homeStoryImage || data.instagramImages || data.messages)) {
+        if (data && !data.empty && (data.services || data.activePresetId || data.heroImage || data.aboutPhotographerImage || data.homeStoryImage || data.instagramImages || data.messages)) {
+          // Compare timestamps before applying remote data over local data
+          if (data.lastUpdated && lastUpdatedRef.current) {
+            const serverTime = new Date(data.lastUpdated).getTime();
+            const localTime = new Date(lastUpdatedRef.current).getTime();
+            if (serverTime < localTime) {
+              // Local data is newer than server response, keep local data
+              return true;
+            }
+          }
           applyData(data);
-          try {
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-          } catch {}
+          saveToStorageEngine(data);
           return true;
         }
       }
     } catch {}
 
-    // 2. Fallback to static JSON file
-    try {
-      const staticRes = await fetch('/studio-data.json', { cache: 'no-store' });
-      if (staticRes.ok) {
-        const data = await staticRes.json();
-        if (data && (data.services || data.activePresetId || data.heroImage || data.aboutPhotographerImage || data.homeStoryImage || data.instagramImages || data.messages)) {
-          applyData(data);
-          return true;
+    // 2. Fallback to static JSON file ONLY if user has no custom local data saved
+    if (!hasLocalCustomDataRef.current) {
+      try {
+        const staticRes = await fetch('/studio-data.json', { cache: 'no-store' });
+        if (staticRes.ok) {
+          const data = await staticRes.json();
+          if (data && !data.empty && (data.services || data.activePresetId || data.heroImage || data.aboutPhotographerImage || data.homeStoryImage || data.instagramImages || data.messages)) {
+            applyData(data);
+            return true;
+          }
         }
-      }
-    } catch {}
+      } catch {}
+    }
 
     return false;
   };
 
   // Load persisted customizations on startup + live cross-tab storage event sync + server fetch
   useEffect(() => {
-    // 1. Load initial local storage data if present
-    try {
-      const savedData = localStorage.getItem(STORAGE_KEY);
+    const initData = async () => {
+      // 1. Load initial storage data (IndexedDB + localStorage fallback)
+      const savedData = await loadFromStorageEngine();
       if (savedData) {
-        applyData(JSON.parse(savedData));
+        applyData(savedData);
       }
-    } catch (err) {
-      console.error('Failed to parse saved studio data from localStorage:', err);
-    }
 
-    // 2. Fetch fresh server data for Private/Incognito windows & all tabs
-    fetchServerData();
+      // 2. Fetch fresh server data for multi-device sync safely
+      await fetchServerData();
+    };
+
+    initData();
 
     // 3. Real-time listener for multi-tab localStorage synchronization
     const handleStorageChange = (e: StorageEvent) => {
@@ -254,7 +277,7 @@ export const StudioDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     };
   }, []);
 
-  // Save changes instantly to localStorage, React Context, Server API, and BroadcastChannel
+  // Save changes instantly to IndexedDB, localStorage, React Context, Server API, and BroadcastChannel
   const saveState = async (updatedState: {
     activePresetId?: string;
     bannerEnabled?: boolean;
@@ -272,6 +295,10 @@ export const StudioDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     const activeInstagram = (updatedState.instagramImages ?? instagramImages);
     const activeMessages = (updatedState.messages ?? messages);
 
+    const nowIso = new Date().toISOString();
+    lastUpdatedRef.current = nowIso;
+    hasLocalCustomDataRef.current = true;
+
     const payload = {
       activePresetId: updatedState.activePresetId ?? activePresetId,
       bannerEnabled: updatedState.bannerEnabled ?? bannerEnabled,
@@ -283,18 +310,14 @@ export const StudioDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       portfolio: activePortfolio.length > 0 ? activePortfolio : portfolioData,
       instagramImages: activeInstagram.length > 0 ? activeInstagram : defaultInstagramItems,
       messages: activeMessages,
-      lastUpdated: new Date().toISOString()
+      lastUpdated: nowIso
     };
 
     // Update in-memory React state immediately
     applyData(payload);
 
-    // 1. Save locally to localStorage
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
-    } catch (err) {
-      console.error('Failed to save studio data to localStorage:', err);
-    }
+    // 1. Save locally to IndexedDB + localStorage
+    await saveToStorageEngine(payload);
 
     // 2. Broadcast to all open tabs / windows in real time
     try {
@@ -424,6 +447,7 @@ export const StudioDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   };
 
   const resetToDefaults = () => {
+    clearStorageEngine();
     const defaultPreset = EVENT_PRESETS[0];
     const defaultPayload = {
       activePresetId: 'default',

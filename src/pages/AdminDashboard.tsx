@@ -87,7 +87,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ setCurrentPage }
     input.onchange = async (e) => {
       const file = (e.target as HTMLInputElement).files?.[0];
       if (file) {
-        showToast('Optimizing and saving photo...');
+        showToast('Optimizing and saving photo to secure storage...');
         const reader = new FileReader();
         reader.onload = (readerEvent) => {
           const rawUrl = readerEvent.target?.result as string;
@@ -95,13 +95,18 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ setCurrentPage }
             const img = new Image();
             img.onload = () => {
               const canvas = document.createElement('canvas');
-              const maxWidth = 600;
+              const maxDim = 1200;
               let width = img.width;
               let height = img.height;
 
-              if (width > maxWidth) {
-                height = Math.round((height * maxWidth) / width);
-                width = maxWidth;
+              if (width > maxDim || height > maxDim) {
+                if (width > height) {
+                  height = Math.round((height * maxDim) / width);
+                  width = maxDim;
+                } else {
+                  width = Math.round((width * maxDim) / height);
+                  height = maxDim;
+                }
               }
 
               canvas.width = width;
@@ -109,18 +114,20 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ setCurrentPage }
 
               const ctx = canvas.getContext('2d');
               if (ctx) {
+                ctx.imageSmoothingEnabled = true;
+                ctx.imageSmoothingQuality = 'high';
                 ctx.drawImage(img, 0, 0, width, height);
-                const compressedUrl = canvas.toDataURL('image/jpeg', 0.60);
+                const compressedUrl = canvas.toDataURL('image/jpeg', 0.75);
                 onSuccess(compressedUrl);
-                showToast('✅ Photo updated successfully!');
+                showToast('✅ Photo updated & saved permanently!');
               } else {
                 onSuccess(rawUrl);
-                showToast('Image uploaded!');
+                showToast('✅ Photo uploaded successfully!');
               }
             };
             img.onerror = () => {
               onSuccess(rawUrl);
-              showToast('Image uploaded!');
+              showToast('✅ Photo uploaded successfully!');
             };
             img.src = rawUrl;
           }
