@@ -86,55 +86,84 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ setCurrentPage }
     input.accept = 'image/*';
     input.onchange = async (e) => {
       const file = (e.target as HTMLInputElement).files?.[0];
-      if (file) {
-        showToast('Optimizing and saving photo to secure storage...');
-        const reader = new FileReader();
-        reader.onload = (readerEvent) => {
-          const rawUrl = readerEvent.target?.result as string;
-          if (rawUrl) {
-            const img = new Image();
-            img.onload = () => {
-              const canvas = document.createElement('canvas');
-              const maxDim = 1200;
-              let width = img.width;
-              let height = img.height;
+      if (!file) return;
 
-              if (width > maxDim || height > maxDim) {
-                if (width > height) {
-                  height = Math.round((height * maxDim) / width);
-                  width = maxDim;
-                } else {
-                  width = Math.round((width * maxDim) / height);
-                  height = maxDim;
-                }
-              }
+      showToast('⚡ Optimizing photo for high-speed cloud loading...');
+      const reader = new FileReader();
 
-              canvas.width = width;
-              canvas.height = height;
+      reader.onload = (readerEvent) => {
+        const rawUrl = readerEvent.target?.result as string;
+        if (!rawUrl) return;
 
-              const ctx = canvas.getContext('2d');
-              if (ctx) {
-                ctx.imageSmoothingEnabled = true;
-                ctx.imageSmoothingQuality = 'high';
-                ctx.drawImage(img, 0, 0, width, height);
-                const compressedUrl = canvas.toDataURL('image/jpeg', 0.75);
-                onSuccess(compressedUrl);
-                showToast('✅ Photo updated & saved permanently!');
-              } else {
-                onSuccess(rawUrl);
-                showToast('✅ Photo uploaded successfully!');
-              }
-            };
-            img.onerror = () => {
-              onSuccess(rawUrl);
-              showToast('✅ Photo uploaded successfully!');
-            };
-            img.src = rawUrl;
+        const img = new Image();
+        img.onload = async () => {
+          const canvas = document.createElement('canvas');
+          const maxDim = 850;
+          let width = img.width;
+          let height = img.height;
+
+          if (width > maxDim || height > maxDim) {
+            if (width > height) {
+              height = Math.round((height * maxDim) / width);
+              width = maxDim;
+            } else {
+              width = Math.round((width * maxDim) / height);
+              height = maxDim;
+            }
           }
+
+          canvas.width = width;
+          canvas.height = height;
+
+          const ctx = canvas.getContext('2d');
+          let compressedUrl = rawUrl;
+          if (ctx) {
+            ctx.imageSmoothingEnabled = true;
+            ctx.imageSmoothingQuality = 'high';
+            ctx.drawImage(img, 0, 0, width, height);
+            compressedUrl = canvas.toDataURL('image/jpeg', 0.65);
+          }
+
+          // Try uploading to free ImgBB CDN for permanent HTTPS link
+          try {
+            showToast('☁️ Uploading photo to permanent CDN storage...');
+            const formData = new FormData();
+            const base64Data = compressedUrl.replace(/^data:image\/\w+;base64,/, '');
+            formData.append('image', base64Data);
+
+            const imgbbRes = await fetch('https://api.imgbb.com/1/upload?key=6d25705663b0a062776c5b96788da6dd', {
+              method: 'POST',
+              body: formData
+            });
+
+            if (imgbbRes.ok) {
+              const imgbbData = await imgbbRes.json();
+              if (imgbbData && imgbbData.data && imgbbData.data.url) {
+                const cdnUrl = imgbbData.data.url;
+                onSuccess(cdnUrl);
+                showToast('✅ Photo uploaded & saved to permanent cloud CDN!');
+                return;
+              }
+            }
+          } catch (uploadErr) {
+            console.warn('CDN upload fallback to compressed local storage:', uploadErr);
+          }
+
+          // Fallback to ultra-compressed local Base64 string (~30KB)
+          onSuccess(compressedUrl);
+          showToast('✅ Photo optimized & saved to database!');
         };
-        reader.readAsDataURL(file);
-      }
+
+        img.onerror = () => {
+          onSuccess(rawUrl);
+          showToast('✅ Photo uploaded successfully!');
+        };
+        img.src = rawUrl;
+      };
+
+      reader.readAsDataURL(file);
     };
+
     input.click();
   };
 

@@ -164,6 +164,9 @@ export const StudioDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     if (parsed.lastUpdated) {
       lastUpdatedRef.current = parsed.lastUpdated;
       hasLocalCustomDataRef.current = true;
+    } else if (parsed.services || parsed.heroImage || parsed.aboutPhotographerImage || parsed.homeStoryImage || parsed.instagramImages) {
+      // Mark local custom data present even if legacy timestamp was missing
+      hasLocalCustomDataRef.current = true;
     }
 
     if (parsed.activePresetId) setActivePresetId(parsed.activePresetId);
@@ -201,7 +204,7 @@ export const StudioDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         const data = await res.json();
         if (data && !data.empty && (data.services || data.activePresetId || data.heroImage || data.aboutPhotographerImage || data.homeStoryImage || data.instagramImages || data.messages)) {
           // Compare timestamps before applying remote data over local data
-          if (data.lastUpdated && lastUpdatedRef.current) {
+          if (hasLocalCustomDataRef.current && lastUpdatedRef.current && data.lastUpdated) {
             const serverTime = new Date(data.lastUpdated).getTime();
             const localTime = new Date(lastUpdatedRef.current).getTime();
             if (serverTime < localTime) {
@@ -214,7 +217,9 @@ export const StudioDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
           return true;
         }
       }
-    } catch {}
+    } catch (err) {
+      console.warn('Server fetch exception:', err);
+    }
 
     // 2. Fallback to static JSON file ONLY if user has no custom local data saved
     if (!hasLocalCustomDataRef.current) {
@@ -333,8 +338,15 @@ export const StudioDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
+    }).then(async (res) => {
+      if (!res.ok) {
+        console.warn('Server sync returned non-OK status:', res.status, res.statusText);
+      } else {
+        const resJson = await res.json().catch(() => null);
+        console.log('Server sync success:', resJson);
+      }
     }).catch((err) => {
-      console.warn('Server sync note:', err);
+      console.warn('Server sync network error:', err);
     });
   };
 

@@ -74,17 +74,26 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   if (req.method === 'POST' || req.method === 'PUT') {
-    const data = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
-    if (data && typeof data === 'object') {
-      studioDataStore = data;
-      await setKvData(data);
-      return res.status(200).json({
-        success: true,
-        message: 'Data saved successfully',
-        lastUpdated: data.lastUpdated
-      });
+    try {
+      const data = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
+      if (data && typeof data === 'object') {
+        studioDataStore = data;
+        const kvSuccess = await setKvData(data);
+        const hasKv = Boolean(process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL);
+
+        return res.status(200).json({
+          success: true,
+          message: 'Data saved successfully',
+          kvSynced: kvSuccess,
+          hasKvConfigured: hasKv,
+          lastUpdated: data.lastUpdated
+        });
+      }
+      return res.status(400).json({ error: 'Invalid JSON payload' });
+    } catch (err: any) {
+      console.error('Failed to parse POST body:', err);
+      return res.status(400).json({ error: 'Invalid JSON body structure', details: err?.message });
     }
-    return res.status(400).json({ error: 'Invalid JSON payload' });
   }
 
   return res.status(405).json({ error: 'Method not allowed' });
