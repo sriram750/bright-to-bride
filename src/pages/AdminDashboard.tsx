@@ -84,24 +84,47 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ setCurrentPage }
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = 'image/*';
+
     input.onchange = async (e) => {
       const file = (e.target as HTMLInputElement).files?.[0];
+
       if (!file) return;
 
+      // Basic file validation
+      if (!file.type.startsWith('image/')) {
+        showToast('❌ Please select a valid image file.');
+        return;
+      }
+
+      // Optional 10 MB limit for original upload
+      if (file.size > 10 * 1024 * 1024) {
+        showToast('❌ Image is too large. Please select an image below 10 MB.');
+        return;
+      }
+
       showToast('⚡ Optimizing photo for high-speed cloud loading...');
+
       const reader = new FileReader();
 
       reader.onload = (readerEvent) => {
         const rawUrl = readerEvent.target?.result as string;
-        if (!rawUrl) return;
+
+        if (!rawUrl) {
+          showToast('❌ Could not read the selected image.');
+          return;
+        }
 
         const img = new Image();
+
         img.onload = async () => {
           const canvas = document.createElement('canvas');
+
           const maxDim = 850;
+
           let width = img.width;
           let height = img.height;
 
+          // Resize image while maintaining aspect ratio
           if (width > maxDim || height > maxDim) {
             if (width > height) {
               height = Math.round((height * maxDim) / width);
@@ -116,49 +139,163 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ setCurrentPage }
           canvas.height = height;
 
           const ctx = canvas.getContext('2d');
+
           let compressedUrl = rawUrl;
+
           if (ctx) {
             ctx.imageSmoothingEnabled = true;
             ctx.imageSmoothingQuality = 'high';
-            ctx.drawImage(img, 0, 0, width, height);
-            compressedUrl = canvas.toDataURL('image/jpeg', 0.65);
+
+            ctx.drawImage(
+              img,
+              0,
+              0,
+              width,
+              height
+            );
+
+            // Compress to JPEG
+            compressedUrl = canvas.toDataURL(
+              'image/jpeg',
+              0.65
+            );
           }
 
-          // Try uploading to free ImgBB CDN for permanent HTTPS link
           try {
-            showToast('☁️ Uploading photo to permanent CDN storage...');
-            const formData = new FormData();
-            const base64Data = compressedUrl.replace(/^data:image\/\w+;base64,/, '');
-            formData.append('image', base64Data);
+            showToast('☁️ Uploading photo to permanent cloud storage...');
 
-            const imgbbRes = await fetch('https://api.imgbb.com/1/upload?key=6d25705663b0a062776c5b96788da6dd', {
-              method: 'POST',
-              body: formData
-            });
+            // Get ImgBB API key from Vercel/Vite environment variable
+            const imgbbApiKey =
+              import.meta.env.VITE_IMGBB_API_KEY;
 
-            if (imgbbRes.ok) {
-              const imgbbData = await imgbbRes.json();
-              if (imgbbData && imgbbData.data && imgbbData.data.url) {
-                const cdnUrl = imgbbData.data.url;
-                onSuccess(cdnUrl);
-                showToast('✅ Photo uploaded & saved to permanent cloud CDN!');
-                return;
-              }
+            if (!imgbbApiKey) {
+              console.error(
+                'VITE_IMGBB_API_KEY is missing.'
+              );
+
+              showToast(
+                '❌ ImgBB API key is not configured. Please check Vercel Environment Variables.'
+              );
+
+              return;
             }
-          } catch (uploadErr) {
-            console.warn('CDN upload fallback to compressed local storage:', uploadErr);
-          }
 
-          // Fallback to ultra-compressed local Base64 string (~30KB)
-          onSuccess(compressedUrl);
-          showToast('✅ Photo optimized & saved to database!');
+            // Remove the data:image/jpeg;base64, prefix
+            const base64Data = compressedUrl.replace(
+              /^data:image\/\w+;base64,/,
+              ''
+            );
+
+            const formData = new FormData();
+
+            formData.append(
+              'image',
+              base64Data
+            );
+
+            // Upload to ImgBB
+            const imgbbRes = await fetch(
+              `https://api.imgbb.com/1/upload?key=${encodeURIComponent(
+                imgbbApiKey
+              )}`,
+              {
+                method: 'POST',
+                body: formData
+              }
+            );
+
+            // Read response even when ImgBB returns an error
+            const imgbbData = await imgbbRes.json();
+
+            console.log(
+              'ImgBB upload response:',
+              imgbbData
+            );
+
+            if (!imgbbRes.ok) {
+              const errorMessage =
+                imgbbData?.error?.message ||
+                'ImgBB upload failed';
+
+              console.error(
+                'ImgBB upload failed:',
+                imgbbData
+              );
+
+              showToast(
+                `❌ Photo upload failed: ${errorMessage}`
+              );
+
+              return;
+            }
+
+            // Make sure ImgBB returned a real URL
+            const cdnUrl =
+              imgbbData?.data?.url;
+
+            if (!cdnUrl) {
+              console.error(
+                'ImgBB did not return an image URL:',
+                imgbbData
+              );
+
+              showToast(
+                '❌ ImgBB did not return a valid image URL.'
+              );
+
+              return;
+            }
+
+            console.log(
+              '✅ Permanent ImgBB URL:',
+              cdnUrl
+            );
+
+            // Save the permanent HTTPS URL into StudioDataContext
+            onSuccess(cdnUrl);
+
+            showToast(
+              '✅ Photo uploaded to permanent cloud storage!'
+            );
+
+          } catch (uploadErr) {
+            console.error(
+              'ImgBB upload error:',
+              uploadErr
+            );
+
+            // IMPORTANT:
+            // Do NOT fall back to Base64/local storage.
+            // We want only a permanent cloud URL.
+            showToast(
+              '❌ Photo upload failed. Please try again.'
+            );
+
+            return;
+          }
         };
 
         img.onerror = () => {
-          onSuccess(rawUrl);
-          showToast('✅ Photo uploaded successfully!');
+          console.error(
+            'Could not load selected image.'
+          );
+
+          showToast(
+            '❌ Invalid or corrupted image file.'
+          );
         };
+
         img.src = rawUrl;
+      };
+
+      reader.onerror = () => {
+        console.error(
+          'FileReader failed to read image.'
+        );
+
+        showToast(
+          '❌ Could not read the selected image.'
+        );
       };
 
       reader.readAsDataURL(file);
@@ -207,9 +344,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ setCurrentPage }
                   setAuthError(false);
                 }}
                 placeholder="Enter password..."
-                className={`w-full px-4 py-3 text-sm bg-studio-cream/50 border ${
-                  authError ? 'border-red-500 bg-red-50/50' : 'border-studio-gold/30'
-                } rounded-lg focus:outline-none focus:border-studio-gold font-sans`}
+                className={`w-full px-4 py-3 text-sm bg-studio-cream/50 border ${authError ? 'border-red-500 bg-red-50/50' : 'border-studio-gold/30'
+                  } rounded-lg focus:outline-none focus:border-studio-gold font-sans`}
               />
               {authError && (
                 <p className="text-xs text-red-600 mt-1.5 flex items-center">
@@ -325,11 +461,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ setCurrentPage }
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id as any)}
-              className={`px-5 py-3 text-xs tracking-wider uppercase font-medium rounded-t-xl transition-all whitespace-nowrap border-t border-x ${
-                activeTab === tab.id
+              className={`px-5 py-3 text-xs tracking-wider uppercase font-medium rounded-t-xl transition-all whitespace-nowrap border-t border-x ${activeTab === tab.id
                   ? 'bg-white text-studio-gold border-studio-gold/30 border-b-white font-semibold shadow-sm'
                   : 'bg-studio-cream/40 text-studio-charcoal/70 border-transparent hover:text-studio-gold'
-              }`}
+                }`}
             >
               {tab.label}
             </button>
@@ -354,11 +489,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ setCurrentPage }
                 return (
                   <div
                     key={preset.id}
-                    className={`bg-white rounded-2xl border p-6 space-y-4 transition-all ${
-                      isActive
+                    className={`bg-white rounded-2xl border p-6 space-y-4 transition-all ${isActive
                         ? 'border-2 border-studio-gold shadow-lg ring-2 ring-studio-gold/20'
                         : 'border-studio-gold/20 hover:border-studio-gold/50 shadow-sm'
-                    }`}
+                      }`}
                   >
                     <div className="flex items-start justify-between">
                       <div>
@@ -403,11 +537,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ setCurrentPage }
                           showToast(`Activated '${preset.name}' theme across site!`);
                         }}
                         disabled={isActive}
-                        className={`px-5 py-2.5 text-xs font-medium uppercase tracking-widest rounded-lg transition-all ${
-                          isActive
+                        className={`px-5 py-2.5 text-xs font-medium uppercase tracking-widest rounded-lg transition-all ${isActive
                             ? 'bg-emerald-600 text-white cursor-default'
                             : 'bg-studio-charcoal text-studio-cream hover:bg-studio-gold hover:text-studio-charcoal shadow-sm'
-                        }`}
+                          }`}
                       >
                         {isActive ? 'Currently Active' : 'Activate Theme'}
                       </button>
@@ -701,11 +834,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ setCurrentPage }
                   </label>
                   <button
                     onClick={() => updateBanner(!bannerEnabled, bannerText)}
-                    className={`px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-widest transition-colors ${
-                      bannerEnabled
+                    className={`px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-widest transition-colors ${bannerEnabled
                         ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
                         : 'bg-gray-200 text-gray-600'
-                    }`}
+                      }`}
                   >
                     {bannerEnabled ? 'Enabled' : 'Disabled'}
                   </button>
@@ -874,9 +1006,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ setCurrentPage }
                     setJsonError(false);
                   }}
                   placeholder="Paste JSON configuration string here..."
-                  className={`w-full p-3 text-xs bg-studio-cream/40 border ${
-                    jsonError ? 'border-red-500 bg-red-50/50' : 'border-studio-gold/30'
-                  } rounded-xl focus:outline-none font-mono`}
+                  className={`w-full p-3 text-xs bg-studio-cream/40 border ${jsonError ? 'border-red-500 bg-red-50/50' : 'border-studio-gold/30'
+                    } rounded-xl focus:outline-none font-mono`}
                 />
                 {jsonError && (
                   <p className="text-xs text-red-600">Invalid JSON string structure.</p>
